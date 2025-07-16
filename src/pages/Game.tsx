@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { Home, Send, Crown } from "lucide-react";
 import { BOARD_PROPERTIES, Property } from "@/data/properties";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface Player {
   id: string;
@@ -607,43 +608,148 @@ const Game = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-2 sm:p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+        {/* Mobile Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
             <Button 
               variant="outline" 
               size="sm" 
-              className="gap-2 border-slate-600 text-slate-300 hover:bg-slate-700" 
+              className="gap-1 border-slate-600 text-slate-300 hover:bg-slate-700 text-xs sm:text-sm px-2 sm:px-3" 
               onClick={() => navigate('/lobby')}
             >
-              <Home className="h-4 w-4" />
-              Lobby verlassen
+              <Home className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Lobby verlassen</span>
+              <span className="sm:hidden">Exit</span>
             </Button>
-            <h1 className="text-3xl font-bold text-white">Mystisches Reich</h1>
+            <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-white">Mystisches Reich</h1>
             {gameCode && (
-              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                Code: {gameCode}
+              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs sm:text-sm">
+                {gameCode}
               </Badge>
             )}
           </div>
           
-          <div className="flex items-center gap-4">
-            <Badge variant="secondary" className="text-lg px-4 py-2 bg-slate-700 text-white">
-              Runde {gameState.round}
+          <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
+            <Badge variant="secondary" className="text-sm sm:text-lg px-2 sm:px-4 py-1 sm:py-2 bg-slate-700 text-white">
+              R{gameState.round}
             </Badge>
-            <Badge className="text-lg px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white">
-              {currentPlayer.name} ist dran
+            <Badge className="text-sm sm:text-lg px-2 sm:px-4 py-1 sm:py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+              <span className="hidden sm:inline">{currentPlayer.name} ist dran</span>
+              <span className="sm:hidden">{currentPlayer.name}</span>
             </Badge>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        {/* Mobile-First Layout */}
+        <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-4 lg:gap-6">
+          {/* Mobile Controls - Above board on mobile */}
+          <div className="order-1 lg:order-2 lg:col-span-1 space-y-4">
+            {/* Current Player Info */}
+            <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700 lg:hidden">
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-3 h-3 rounded-full", currentPlayer.color)}></div>
+                    <span className="text-white font-medium">{currentPlayer.name}</span>
+                  </div>
+                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
+                    {currentPlayer.money.toLocaleString('de-DE')}€
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Dice Roller */}
+            <DiceRoller
+              onRoll={handleDiceRoll}
+              disabled={gameState.gamePhase !== 'waiting' || gameState.currentPlayerId !== currentPlayerId}
+              isRolling={gameState.gamePhase === 'rolling' || gameState.gamePhase === 'moving'}
+            />
+
+            {/* Mobile Players Scroll */}
+            <div className="lg:hidden">
+              <h3 className="text-base font-semibold text-white mb-3">Alle Spieler</h3>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {players.map((player) => (
+                  <div key={player.id} className="flex-shrink-0 w-64">
+                    <PlayerPanel
+                      player={{
+                        id: parseInt(player.id),
+                        name: player.name,
+                        money: player.money,
+                        position: player.position,
+                        color: player.color,
+                        properties: player.properties,
+                        inJail: player.inJail,
+                        jailTurns: player.jailTurns
+                      }}
+                      isCurrentPlayer={gameState.currentPlayerId === player.id}
+                      gamePhase={gameState.gamePhase}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop Sidebar */}
+            <div className="hidden lg:block space-y-4">
+              {/* My Player Panel */}
+              <PlayerPanel
+                player={{
+                  id: parseInt(myPlayer.id),
+                  name: myPlayer.name,
+                  money: myPlayer.money,
+                  position: myPlayer.position,
+                  color: myPlayer.color,
+                  properties: myPlayer.properties,
+                  inJail: myPlayer.inJail,
+                  jailTurns: myPlayer.jailTurns
+                }}
+                isCurrentPlayer={gameState.currentPlayerId === currentPlayerId}
+                gamePhase={gameState.gamePhase}
+              />
+
+              {/* All Players */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-white">Alle Spieler</h3>
+                {players.map((player) => (
+                  <PlayerPanel
+                    key={player.id}
+                    player={{
+                      id: parseInt(player.id),
+                      name: player.name,
+                      money: player.money,
+                      position: player.position,
+                      color: player.color,
+                      properties: player.properties,
+                      inJail: player.inJail,
+                      jailTurns: player.jailTurns
+                    }}
+                    isCurrentPlayer={gameState.currentPlayerId === player.id}
+                    gamePhase={gameState.gamePhase}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Money Transfer Button */}
+            <Button
+              onClick={() => setShowMoneyTransfer(true)}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+              disabled={gameState.gamePhase !== 'waiting'}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Geld senden</span>
+              <span className="sm:hidden">Senden</span>
+            </Button>
+          </div>
+
           {/* Game Board */}
-          <div className="xl:col-span-3">
+          <div className="order-2 lg:order-1 lg:col-span-3">
             <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700 border-2 shadow-2xl">
-              <CardContent className="p-6">
+              <CardContent className="p-2 sm:p-4 lg:p-6">
                 <GameBoard
                   players={players.map(p => ({
                     id: parseInt(p.id),
@@ -659,65 +765,6 @@ const Game = () => {
                 />
               </CardContent>
             </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <PlayerPanel
-              player={{
-                id: parseInt(myPlayer.id),
-                name: myPlayer.name,
-                money: myPlayer.money,
-                position: myPlayer.position,
-                color: myPlayer.color,
-                properties: myPlayer.properties,
-                inJail: myPlayer.inJail,
-                jailTurns: myPlayer.jailTurns
-              }}
-              isCurrentPlayer={gameState.currentPlayerId === currentPlayerId}
-              gamePhase={gameState.gamePhase}
-            />
-
-            <DiceRoller
-              onRoll={handleDiceRoll}
-              disabled={gameState.gamePhase !== 'waiting' || gameState.currentPlayerId !== currentPlayerId}
-              isRolling={gameState.gamePhase === 'rolling' || gameState.gamePhase === 'moving'}
-            />
-
-            {/* Money Transfer Button */}
-            <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700">
-              <CardContent className="p-4">
-                <Button 
-                  onClick={() => setShowMoneyTransfer(true)}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-                  disabled={gameState.gamePhase !== 'waiting'}
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Geld senden
-                </Button>
-              </CardContent>
-            </Card>
-
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-white">Alle Spieler</h3>
-              {players.map((player) => (
-                <PlayerPanel
-                  key={player.id}
-                  player={{
-                    id: parseInt(player.id),
-                    name: player.name,
-                    money: player.money,
-                    position: player.position,
-                    color: player.color,
-                    properties: player.properties,
-                    inJail: player.inJail,
-                    jailTurns: player.jailTurns
-                  }}
-                  isCurrentPlayer={gameState.currentPlayerId === player.id}
-                  gamePhase={gameState.gamePhase}
-                />
-              ))}
-            </div>
           </div>
         </div>
 

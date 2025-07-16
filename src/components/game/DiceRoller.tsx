@@ -45,65 +45,83 @@ export function DiceRoller({ onRoll, disabled, isRolling }: DiceRollerProps) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg text-center">Würfel</CardTitle>
+    <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700">
+      <CardHeader className="pb-2 sm:pb-4">
+        <CardTitle className="text-base sm:text-lg text-center text-white">Würfel</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Dice Display */}
-        <div className="flex items-center justify-center gap-4">
+      <CardContent className="space-y-3 sm:space-y-4">
+        {/* Dice Display - responsive sizing */}
+        <div className="flex items-center justify-center gap-3 sm:gap-4">
           <div className={cn(
-            "flex items-center justify-center w-16 h-16 bg-dice-bg border-2 border-board-border rounded-lg shadow-dice transition-transform duration-150",
+            "flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-dice-bg border-2 border-board-border rounded-lg shadow-dice transition-transform duration-150",
             isRolling && "animate-bounce-gentle"
           )}>
-            {getDiceIcon(dice1)}
+            <div className="scale-75 sm:scale-100">
+              {getDiceIcon(dice1)}
+            </div>
           </div>
           <div className={cn(
-            "flex items-center justify-center w-16 h-16 bg-dice-bg border-2 border-board-border rounded-lg shadow-dice transition-transform duration-150",
+            "flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-dice-bg border-2 border-board-border rounded-lg shadow-dice transition-transform duration-150",
             isRolling && "animate-bounce-gentle"
           )}>
-            {getDiceIcon(dice2)}
+            <div className="scale-75 sm:scale-100">
+              {getDiceIcon(dice2)}
+            </div>
           </div>
         </div>
 
-        {/* Last Roll Result */}
+        {/* Last Roll Result - more compact on mobile */}
         {lastRoll && !isRolling && (
-          <div className="text-center p-3 bg-muted/50 rounded-lg animate-slide-up">
-            <div className="text-sm text-muted-foreground">Letzter Wurf:</div>
-            <div className="text-2xl font-bold text-primary">
+          <div className="text-center p-2 sm:p-3 bg-muted/50 rounded-lg animate-slide-up">
+            <div className="text-xs sm:text-sm text-muted-foreground">Letzter Wurf:</div>
+            <div className="text-xl sm:text-2xl font-bold text-primary">
               {lastRoll.dice1} + {lastRoll.dice2} = {lastRoll.total}
             </div>
             {lastRoll.dice1 === lastRoll.dice2 && (
-              <div className="text-sm text-accent font-medium mt-1">
+              <div className="text-xs sm:text-sm text-accent font-medium mt-1">
                 Pasch! Noch ein Wurf!
               </div>
             )}
           </div>
         )}
 
-        {/* Roll Button */}
+        {/* Roll Button - mobile optimized */}
         <Button
           onClick={rollDice}
           disabled={disabled || isRolling}
-          className="w-full text-lg py-6"
+          className="w-full text-base sm:text-lg py-4 sm:py-6"
           size="lg"
         >
           {isRolling ? (
             <span className="flex items-center gap-2">
               <span className="animate-spin">🎲</span>
-              Würfelt...
+              <span className="hidden sm:inline">Würfelt...</span>
+              <span className="sm:hidden">Würfelt</span>
             </span>
           ) : (
             "Würfeln"
           )}
         </Button>
 
-        {/* Instructions */}
-        <div className="text-center text-sm text-muted-foreground">
+        {/* Instructions - responsive text */}
+        <div className="text-center text-xs sm:text-sm text-muted-foreground">
           {disabled ? (
-            isRolling ? "Würfel werden geworfen..." : "Warte auf deinen Zug"
+            isRolling ? (
+              <>
+                <span className="hidden sm:inline">Würfel werden geworfen...</span>
+                <span className="sm:hidden">Würfelt...</span>
+              </>
+            ) : (
+              <>
+                <span className="hidden sm:inline">Warte auf deinen Zug</span>
+                <span className="sm:hidden">Warten...</span>
+              </>
+            )
           ) : (
-            "Klicke um zu würfeln!"
+            <>
+              <span className="hidden sm:inline">Klicke um zu würfeln!</span>
+              <span className="sm:hidden">Tippen zum Würfeln!</span>
+            </>
           )}
         </div>
       </CardContent>

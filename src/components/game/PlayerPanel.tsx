@@ -28,21 +28,21 @@ export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelP
       isCurrentPlayer && "ring-2 ring-yellow-400 ring-offset-2 shadow-xl",
       isCurrentPlayer && gamePhase === 'moving' && "animate-pulse"
     )}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-3 text-white">
-          <Avatar className={cn("border-2", `border-${player.color}`)}>
-            <AvatarFallback className={cn("font-bold text-white", `bg-${player.color}`)}>
+      <CardHeader className="pb-2 sm:pb-3">
+        <CardTitle className="flex items-center gap-2 sm:gap-3 text-white">
+          <Avatar className={cn("border-2 w-8 h-8 sm:w-10 sm:h-10", `border-${player.color}`)}>
+            <AvatarFallback className={cn("font-bold text-white text-sm sm:text-base", `bg-${player.color}`)}>
               {player.name.charAt(0)}
             </AvatarFallback>
           </Avatar>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{player.name}</span>
-              {isCurrentPlayer && <Crown className="h-4 w-4 text-yellow-500" />}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="text-sm sm:text-lg font-medium truncate">{player.name}</span>
+              {isCurrentPlayer && <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />}
             </div>
             {isCurrentPlayer && (
               <Badge variant={gamePhase === 'waiting' ? 'default' : 'outline'} className="text-xs">
-                {gamePhase === 'waiting' && 'Bereit zum Würfeln'}
+                {gamePhase === 'waiting' && 'Bereit'}
                 {gamePhase === 'rolling' && 'Würfelt...'}
                 {gamePhase === 'moving' && 'Bewegt sich...'}
                 {gamePhase === 'property' && 'Entscheidet...'}
@@ -54,36 +54,38 @@ export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelP
         </CardTitle>
       </CardHeader>
       
-      <CardContent className="space-y-3">
-        {/* Money */}
-        <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg text-white shadow-lg">
-          <Coins className="h-5 w-5" />
-          <span className="text-lg font-bold">
+      <CardContent className="space-y-2 sm:space-y-3">
+        {/* Money - more compact on mobile */}
+        <div className="flex items-center gap-2 p-2 sm:p-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg text-white shadow-lg">
+          <Coins className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+          <span className="text-sm sm:text-lg font-bold">
             {player.money.toLocaleString('de-DE')} Gold
           </span>
         </div>
 
-        {/* Properties Count */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-1">
-            <Home className="h-4 w-4 text-slate-400" />
-            <span className="text-slate-300">Besitztümer:</span>
+        {/* Properties and Position - Side by side on mobile */}
+        <div className="grid grid-cols-2 gap-2 sm:space-y-2 sm:block">
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <div className="flex items-center gap-1">
+              <Home className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400" />
+              <span className="text-slate-300 hidden sm:inline">Besitztümer:</span>
+              <span className="text-slate-300 sm:hidden">Besitz:</span>
+            </div>
+            <Badge variant="outline" className="border-slate-600 text-slate-300 text-xs">
+              {player.properties.length}
+            </Badge>
           </div>
-          <Badge variant="outline" className="border-slate-600 text-slate-300">
-            {player.properties.length}
-          </Badge>
-        </div>
 
-        {/* Position */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-slate-300">Position:</span>
-          <Badge className="bg-slate-700 text-slate-300">
-            Feld {player.position}
-          </Badge>
+          <div className="flex items-center justify-between text-xs sm:text-sm">
+            <span className="text-slate-300">Position:</span>
+            <Badge className="bg-slate-700 text-slate-300 text-xs">
+              {player.position}
+            </Badge>
+          </div>
         </div>
 
         {/* Player Status */}
-        <div className="pt-2 border-t border-slate-600">
+        <div className="pt-1 sm:pt-2 border-t border-slate-600">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span>Status:</span>
             <span className={cn(
