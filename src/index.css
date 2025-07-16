@@ -64,9 +64,13 @@ All colors MUST be HSL.
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     /* Gradients */
-    --gradient-board: linear-gradient(135deg, hsl(var(--background)), hsl(var(--card)));
-    --gradient-money: linear-gradient(135deg, hsl(var(--money-green)), hsl(142 76% 42%));
+    --gradient-board: linear-gradient(135deg, hsl(222 84% 5%), hsl(261 83% 58%), hsl(222 84% 5%));
+    --gradient-money: linear-gradient(135deg, hsl(142 76% 36%), hsl(120 100% 35%));
     --gradient-property: linear-gradient(180deg, hsl(var(--card)), hsl(210 40% 98%));
+    --gradient-hero: linear-gradient(135deg, hsl(261 83% 58%), hsl(330 81% 60%), hsl(271 81% 56%));
+    --gradient-game: linear-gradient(135deg, hsl(222 84% 5%), hsl(220 20% 15%), hsl(222 84% 5%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(120 100% 25%));
+    --gradient-danger: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 100% 50%));
 
     --sidebar-background: 0 0% 98%;
 
@@ -131,5 +135,95 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Custom backgrounds */
+  .bg-gradient-hero {
+    background: var(--gradient-hero);
+  }
+  
+  .bg-gradient-board {
+    background: var(--gradient-board);
+  }
+  
+  .bg-gradient-game {
+    background: var(--gradient-game);
+  }
+  
+  .bg-gradient-money {
+    background: var(--gradient-money);
+  }
+  
+  .bg-gradient-success {
+    background: var(--gradient-success);
+  }
+  
+  .bg-gradient-danger {
+    background: var(--gradient-danger);
+  }
+
+  /* Game specific utilities */
+  .shadow-property {
+    box-shadow: 0 10px 30px -10px hsl(var(--property-shadow));
+  }
+  
+  .shadow-player {
+    box-shadow: 0 4px 15px -5px hsl(var(--dice-shadow));
+  }
+  
+  .shadow-game {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Animations */
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-bounce-in {
+    animation: bounceIn 0.5s ease-out;
+  }
+  
+  .animate-pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes bounceIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.3);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    70% {
+      transform: scale(0.9);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 40px hsl(var(--primary) / 0.6);
+    }
   }
 }

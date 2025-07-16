@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { HomeIcon, Building, Landmark, Zap, Car, Trophy, Sparkles, Castle, Flame, Crown } from "lucide-react";
+import { HomeIcon, Building, Landmark, Zap, Car, Trophy, Sparkles, Castle, Flame, Crown, Home } from "lucide-react";
 import { BOARD_PROPERTIES, Property } from "@/data/properties";
 
 interface Player {
@@ -13,109 +13,140 @@ interface Player {
   properties: string[];
 }
 
-
 interface GameBoardProps {
   players: Player[];
-  currentPlayer: number;
-  onPropertyClick: (property: Property) => void;
-  properties: Property[];
 }
 
-
-export function GameBoard({ players, currentPlayer, onPropertyClick, properties }: GameBoardProps) {
+export function GameBoard({ players }: GameBoardProps) {
   const getPropertyIcon = (property: Property) => {
     switch (property.type) {
       case 'railroad':
-        return <Car className="h-3 w-3 text-slate-200" />;
+        return <Car className="h-4 w-4 text-yellow-300" />;
       case 'utility':
-        return <Zap className="h-3 w-3 text-blue-300" />;
+        return <Zap className="h-4 w-4 text-blue-300" />;
       case 'special':
-        if (property.id === 'start') return <HomeIcon className="h-3 w-3 text-yellow-300" />;
-        if (property.id === 'prison' || property.id === 'banish') return <Building className="h-3 w-3 text-red-300" />;
-        if (property.id.includes('fortune') || property.id.includes('destiny')) return <Sparkles className="h-3 w-3 text-purple-300" />;
-        if (property.id === 'sanctuary') return <Castle className="h-3 w-3 text-green-300" />;
-        return <Trophy className="h-3 w-3 text-orange-300" />;
+        if (property.id === 'start') return <HomeIcon className="h-4 w-4 text-yellow-400" />;
+        if (property.id === 'prison' || property.id === 'banish') return <Building className="h-4 w-4 text-red-400" />;
+        if (property.id.includes('fortune') || property.id.includes('destiny')) return <Sparkles className="h-4 w-4 text-purple-400" />;
+        if (property.id === 'sanctuary') return <Castle className="h-4 w-4 text-green-400" />;
+        return <Trophy className="h-4 w-4 text-orange-400" />;
       default:
-        if (property.color.includes('legendary')) return <Crown className="h-3 w-3 text-indigo-300" />;
-        if (property.color.includes('orange')) return <Flame className="h-3 w-3 text-orange-300" />;
-        return <Landmark className="h-3 w-3 text-slate-300" />;
+        if (property.color.includes('legendary')) return <Crown className="h-4 w-4 text-indigo-400" />;
+        if (property.color.includes('orange')) return <Flame className="h-4 w-4 text-orange-400" />;
+        return <Landmark className="h-4 w-4 text-blue-300" />;
     }
   };
 
   const getPropertyBackgroundColor = (property: Property) => {
-    if (property.color === 'special') return 'bg-slate-600';
-    if (property.color.includes('gray')) return 'bg-gray-600';
-    if (property.color.includes('blue-600')) return 'bg-blue-600';
-    return property.color || 'bg-slate-500';
+    if (property.color === 'special') return 'bg-slate-600/80';
+    if (property.color.includes('gray')) return 'bg-gray-500/80';
+    if (property.color.includes('blue-600')) return 'bg-blue-500/80';
+    return property.color.replace('bg-', 'bg-') + '/80' || 'bg-slate-500/80';
   };
 
   const getPlayersAtPosition = (position: number) => {
     return players.filter(player => player.position === position);
   };
 
+  const getPropertyOwner = (property: Property) => {
+    if (!property.owner) return null;
+    return players.find(p => p.id === property.owner);
+  };
+
   const renderProperty = (property: Property, index: number) => {
     const playersHere = getPlayersAtPosition(index);
     const isCorner = index === 0 || index === 10 || index === 20 || index === 30;
-    const actualProperty = properties[index]; // Use the actual property data from props
+    const owner = getPropertyOwner(property);
     
     return (
       <div
         key={property.id}
         className={cn(
-          "relative border border-slate-600 bg-slate-700/80 backdrop-blur cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-105",
-          // Mobile-responsive sizing
-          isCorner ? "w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20" : "w-10 h-12 sm:w-12 sm:h-16 lg:w-16 lg:h-20",
-          "flex flex-col justify-between p-0.5 sm:p-1 rounded-sm sm:rounded-lg"
+          "relative border-2 border-white/20 bg-slate-800/90 backdrop-blur cursor-pointer transition-all duration-300 hover:shadow-lg hover:scale-105 hover:border-yellow-400/50",
+          // Responsive sizing with better visibility
+          isCorner ? "w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24" : "w-12 h-16 sm:w-16 sm:h-20 lg:w-20 lg:h-24",
+          "flex flex-col justify-between p-1 sm:p-2 rounded-lg"
         )}
-        onClick={() => property.type === 'property' && onPropertyClick(actualProperty)}
       >
-        {/* Property color bar - smaller on mobile */}
+        {/* Property color bar - larger and more visible */}
         {property.type === 'property' && (
-          <div className={cn("h-2 sm:h-3 w-full rounded-sm border border-white/20", getPropertyBackgroundColor(property))} />
+          <div className={cn(
+            "h-3 sm:h-4 w-full rounded-md border border-white/30 shadow-sm", 
+            getPropertyBackgroundColor(property)
+          )} />
         )}
         
-        {/* Property icon and name - responsive sizing */}
+        {/* Property icon and info */}
         <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <div className="scale-75 sm:scale-100">
+          <div className="mb-1">
             {getPropertyIcon(property)}
           </div>
-          <span className="text-xs font-medium text-white leading-tight mt-0.5 sm:mt-1 hidden sm:block">
+          
+          {/* Property name - always visible on larger screens */}
+          <span className="text-xs font-bold text-white leading-tight hidden sm:block text-center">
             {property.name}
           </span>
+          
           {/* Shortened name for mobile */}
-          <span className="text-xs font-medium text-white leading-tight mt-0.5 block sm:hidden">
+          <span className="text-xs font-bold text-white leading-tight block sm:hidden text-center">
             {property.name.split(' ')[0]}
           </span>
+          
+          {/* Price - more prominent */}
           {property.price > 0 && (
-            <span className="text-xs text-slate-300 hidden sm:block">
+            <span className="text-xs text-yellow-300 font-medium hidden sm:block">
               {property.price}€
             </span>
           )}
+
+          {/* Houses indicator */}
+          {property.houses && property.houses > 0 && (
+            <div className="flex items-center gap-1 mt-1">
+              <Home className="h-3 w-3 text-green-400" />
+              <span className="text-xs text-green-400 font-bold">{property.houses}</span>
+            </div>
+          )}
         </div>
 
-        {/* Players on this position - responsive positioning */}
+        {/* Players on this position - more prominent */}
         {playersHere.length > 0 && (
-          <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 flex flex-wrap gap-0.5 sm:gap-1">
-            {playersHere.map((player) => (
-                <div
-                  key={player.id}
-                  className={cn(
-                    "w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 rounded-full border border-white shadow-lg",
-                    player.color,
-                    player.id === players[currentPlayer].id && "ring-1 sm:ring-2 ring-yellow-400 ring-offset-0 sm:ring-offset-1"
-                  )}
-                />
+          <div className="absolute -top-2 -right-2 flex flex-wrap gap-1 max-w-16">
+            {playersHere.slice(0, 4).map((player, playerIndex) => (
+              <div
+                key={player.id}
+                className={cn(
+                  "w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-xs font-bold text-white",
+                  player.color,
+                  "animate-bounce-in",
+                  "hover:scale-110 transition-transform"
+                )}
+                style={{ animationDelay: `${playerIndex * 0.1}s` }}
+                title={player.name}
+              >
+                {player.name.charAt(0)}
+              </div>
             ))}
+            {playersHere.length > 4 && (
+              <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-slate-600 border-2 border-white shadow-lg flex items-center justify-center text-xs font-bold text-white">
+                +{playersHere.length - 4}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Owner indicator - responsive sizing */}
-        {actualProperty.owner && (
-          <Badge 
-            className="absolute -bottom-0.5 sm:-bottom-1 left-1/2 transform -translate-x-1/2 text-xs h-3 sm:h-4 px-0.5 sm:px-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0"
-          >
-            {players.find(p => p.id === actualProperty.owner)?.name.charAt(0)}
-          </Badge>
+        {/* Owner indicator - much more prominent */}
+        {owner && (
+          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+            <Badge 
+              className={cn(
+                "text-xs h-5 px-2 text-white border-2 border-white font-bold shadow-lg",
+                owner.color,
+                "animate-pulse-glow"
+              )}
+            >
+              {owner.name.charAt(0)}
+            </Badge>
+          </div>
         )}
       </div>
     );
@@ -123,44 +154,46 @@ export function GameBoard({ players, currentPlayer, onPropertyClick, properties 
 
   return (
     <div className="relative w-full max-w-4xl mx-auto aspect-square">
-      {/* Board container - responsive sizing */}
-      <div className="absolute inset-0 border-2 sm:border-4 border-slate-600 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg sm:rounded-xl shadow-2xl">
+      {/* Board container - enhanced design */}
+      <div className="absolute inset-0 border-4 border-yellow-400/50 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 rounded-2xl shadow-game backdrop-blur-sm">
         
-        {/* Center area - responsive content */}
-        <div className="absolute inset-4 sm:inset-8 bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg sm:rounded-xl shadow-inner flex items-center justify-center border border-slate-600">
-          <div className="text-center px-2">
-            <div className="text-xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-1 sm:mb-2">
+        {/* Center area - more prominent */}
+        <div className="absolute inset-6 sm:inset-12 bg-gradient-to-br from-slate-900/90 to-slate-800/90 rounded-2xl shadow-inner flex items-center justify-center border-2 border-yellow-400/30 backdrop-blur-sm">
+          <div className="text-center px-4">
+            <div className="text-2xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 bg-clip-text text-transparent mb-2 drop-shadow-lg">
               MYSTISCHES
             </div>
-            <div className="text-lg sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+            <div className="text-xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent mb-1">
               REICH
             </div>
-            <div className="text-xs sm:text-lg text-slate-300 mt-1 sm:mt-2">Fantasy Edition</div>
-            <div className="mt-2 sm:mt-4 flex items-center justify-center gap-1 sm:gap-2">
-              <Sparkles className="h-2 w-2 sm:h-4 sm:w-4 text-purple-400" />
-              <span className="text-xs sm:text-sm text-slate-400">Magisches Abenteuer</span>
-              <Sparkles className="h-2 w-2 sm:h-4 sm:w-4 text-purple-400" />
+            <div className="text-sm sm:text-lg text-yellow-400 mt-2 font-medium drop-shadow">Fantasy Monopoly</div>
+            <div className="mt-3 sm:mt-6 flex items-center justify-center gap-2">
+              <Sparkles className="h-3 w-3 sm:h-5 sm:w-5 text-yellow-400 animate-pulse" />
+              <span className="text-xs sm:text-sm text-white/80 font-medium">Magisches Abenteuer</span>
+              <Sparkles className="h-3 w-3 sm:h-5 sm:w-5 text-yellow-400 animate-pulse" />
             </div>
           </div>
         </div>
 
-        {/* Bottom row (0-10) - responsive property cards */}
-        <div className="absolute bottom-0 left-0 right-0 flex">
+        {/* Board positions - enhanced layout */}
+        
+        {/* Bottom row (0-10) */}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between">
           {BOARD_PROPERTIES.slice(0, 11).map((property, index) => renderProperty(property, index))}
         </div>
 
         {/* Right column (11-20) */}
-        <div className="absolute right-0 top-0 bottom-12 sm:bottom-20 flex flex-col-reverse">
+        <div className="absolute right-0 top-16 sm:top-24 bottom-16 sm:bottom-24 flex flex-col-reverse justify-between">
           {BOARD_PROPERTIES.slice(11, 20).map((property, index) => renderProperty(property, index + 11))}
         </div>
 
         {/* Top row (21-30) */}
-        <div className="absolute top-0 left-0 right-0 flex flex-row-reverse">
+        <div className="absolute top-0 left-0 right-0 flex flex-row-reverse justify-between">
           {BOARD_PROPERTIES.slice(21, 31).map((property, index) => renderProperty(property, index + 21))}
         </div>
 
         {/* Left column (31-39) */}
-        <div className="absolute left-0 top-12 sm:top-20 bottom-0 flex flex-col">
+        <div className="absolute left-0 top-16 sm:top-24 bottom-16 sm:bottom-24 flex flex-col justify-between">
           {BOARD_PROPERTIES.slice(31, 40).map((property, index) => renderProperty(property, index + 31))}
         </div>
       </div>

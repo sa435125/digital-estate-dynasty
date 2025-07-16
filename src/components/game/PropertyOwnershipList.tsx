@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building, Home, Wrench } from "lucide-react";
+import { Building, Home, Car, Zap } from "lucide-react";
 import { Property } from "@/data/properties";
 import { cn } from "@/lib/utils";
 
@@ -49,10 +49,10 @@ export function PropertyOwnershipList({ players, properties }: PropertyOwnership
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full bg-slate-800/90 backdrop-blur-sm border-slate-700 shadow-game">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Building className="h-5 w-5" />
+        <CardTitle className="text-lg flex items-center gap-2 text-white">
+          <Building className="h-5 w-5 text-yellow-400" />
           Immobilienbesitz
         </CardTitle>
       </CardHeader>
@@ -62,44 +62,50 @@ export function PropertyOwnershipList({ players, properties }: PropertyOwnership
           const colorGroups = getColorGroups(player.id);
           
           return (
-            <div key={player.id} className="space-y-2">
-              <div className="flex items-center gap-2">
+            <div key={player.id} className="space-y-2 p-3 bg-slate-700/50 rounded-lg border border-slate-600">
+              <div className="flex items-center gap-3">
                 <div 
-                  className="w-4 h-4 rounded-full border-2"
-                  style={{ backgroundColor: player.color }}
-                />
-                <span className="font-medium">{player.name}</span>
-                <Badge variant="secondary" className="text-xs">
+                  className={cn("w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-sm font-bold text-white", player.color)}
+                >
+                  {player.name.charAt(0)}
+                </div>
+                <span className="font-bold text-white text-lg">{player.name}</span>
+                <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
                   {ownedProperties.length} Immobilien
                 </Badge>
               </div>
               
               {ownedProperties.length > 0 && (
-                <div className="ml-6 space-y-1">
+                <div className="ml-9 space-y-2">
                   {/* Color Groups */}
                   {Object.entries(colorGroups).map(([color, props]) => (
-                    <div key={color} className="flex flex-wrap items-center gap-2 text-sm">
-                      <div 
-                        className={cn("w-3 h-3 rounded border", color)}
-                      />
-                      <span className={hasMonopoly(player.id, color) ? "font-bold text-green-600" : ""}>
-                        {props.map(p => `${p.name}${p.houses ? ` (${p.houses}🏠)` : ''}`).join(", ")}
-                      </span>
-                      {hasMonopoly(player.id, color) && (
-                        <Badge variant="default" className="text-xs bg-green-500">
-                          <Home className="h-3 w-3 mr-1" />
-                          Monopol
-                        </Badge>
-                      )}
+                    <div key={color} className="p-2 bg-slate-600/50 rounded-md">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <div 
+                          className={cn("w-4 h-4 rounded border-2 border-white shadow", color)}
+                        />
+                        <span className={cn(
+                          "font-medium",
+                          hasMonopoly(player.id, color) ? "text-green-400 font-bold" : "text-white"
+                        )}>
+                          {props.map(p => `${p.name}${p.houses ? ` (${p.houses}🏠)` : ''}`).join(", ")}
+                        </span>
+                        {hasMonopoly(player.id, color) && (
+                          <Badge variant="default" className="text-xs bg-green-500/20 text-green-400 border border-green-500/30">
+                            <Home className="h-3 w-3 mr-1" />
+                            MONOPOL
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   ))}
                   
                   {/* Railroads & Utilities */}
                   {ownedProperties.filter(p => p.type !== 'property').map(prop => (
-                    <div key={prop.id} className="flex items-center gap-2 text-sm ml-3">
-                      <Wrench className="h-3 w-3" />
-                      <span>{prop.name}</span>
-                      <Badge variant="outline" className="text-xs">
+                    <div key={prop.id} className="flex items-center gap-2 text-sm p-2 bg-slate-600/30 rounded">
+                      {prop.type === 'railroad' ? <Car className="h-4 w-4 text-yellow-400" /> : <Zap className="h-4 w-4 text-blue-400" />}
+                      <span className="text-white font-medium">{prop.name}</span>
+                      <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
                         {prop.type === 'railroad' ? 'Bahnhof' : 'Werk'}
                       </Badge>
                     </div>
@@ -108,8 +114,8 @@ export function PropertyOwnershipList({ players, properties }: PropertyOwnership
               )}
               
               {ownedProperties.length === 0 && (
-                <div className="ml-6 text-sm text-muted-foreground">
-                  Keine Immobilien
+                <div className="ml-9 text-sm text-slate-400 italic">
+                  Keine Immobilien besessen
                 </div>
               )}
             </div>

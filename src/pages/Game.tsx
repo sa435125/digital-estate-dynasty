@@ -802,9 +802,6 @@ const Game = () => {
                     color: p.color,
                     properties: p.properties
                   }))}
-                  currentPlayer={players.findIndex(p => p.id === gameState.currentPlayerId)}
-                  onPropertyClick={(property) => setSelectedProperty(property)}
-                  properties={properties}
                 />
               </CardContent>
             </Card>
@@ -904,7 +901,7 @@ const Game = () => {
           <div className="hidden lg:block lg:col-span-3">
             <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700 border-2 shadow-2xl">
               <CardContent className="p-6">
-                <GameBoard
+                <GameBoard 
                   players={players.map(p => ({
                     id: parseInt(p.id),
                     name: p.name,
@@ -912,10 +909,7 @@ const Game = () => {
                     position: p.position,
                     color: p.color,
                     properties: p.properties
-                  }))}
-                  currentPlayer={players.findIndex(p => p.id === gameState.currentPlayerId)}
-                  onPropertyClick={(property) => setSelectedProperty(property)}
-                  properties={properties}
+                  }))} 
                 />
               </CardContent>
             </Card>

@@ -454,38 +454,38 @@ const Lobby = () => {
 
   if (!gameMode) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl bg-slate-800/90 backdrop-blur-xl border-slate-700 shadow-2xl">
+      <div className="min-h-screen bg-gradient-game flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl bg-white/10 backdrop-blur-xl border-white/20 shadow-game">
           <CardHeader className="text-center space-y-4">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center">
+            <div className="mx-auto w-20 h-20 bg-gradient-success rounded-2xl flex items-center justify-center shadow-property">
               <Gamepad2 className="h-10 w-10 text-white" />
             </div>
-            <CardTitle className="text-3xl font-bold text-white">Spiel beitreten oder erstellen</CardTitle>
-            <p className="text-slate-300">Wähle aus, ob du ein neues Spiel erstellen oder einem bestehenden beitreten möchtest</p>
+            <CardTitle className="text-3xl font-bold text-white drop-shadow-lg">Spiel beitreten oder erstellen</CardTitle>
+            <p className="text-white/80 drop-shadow">Wähle aus, ob du ein neues Spiel erstellen oder einem bestehenden beitreten möchtest</p>
           </CardHeader>
           
           <CardContent className="space-y-6">
             <Button 
               onClick={() => setGameMode('create')}
-              className="w-full h-16 text-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold rounded-xl"
+              className="w-full h-16 text-lg bg-gradient-success hover:scale-105 transition-all text-white font-semibold rounded-xl shadow-property"
             >
               <Crown className="h-6 w-6 mr-3" />
-              Neues Spiel erstellen
+              Neues Mystisches Reich erschaffen
             </Button>
             
             <Button 
               onClick={() => setGameMode('join')}
               variant="outline"
-              className="w-full h-16 text-lg border-slate-600 text-slate-300 hover:bg-slate-700 font-semibold rounded-xl"
+              className="w-full h-16 text-lg border-white/30 text-white hover:bg-white/10 backdrop-blur-sm font-semibold rounded-xl"
             >
               <UserPlus className="h-6 w-6 mr-3" />
-              Spiel beitreten
+              Bestehender Lobby beitreten
             </Button>
             
             <Button 
               onClick={() => navigate("/")}
               variant="ghost"
-              className="w-full text-slate-400 hover:text-white"
+              className="w-full text-white/70 hover:text-white hover:bg-white/5"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Zurück zum Hauptmenü
@@ -498,12 +498,18 @@ const Lobby = () => {
 
   if (!lobbyCreated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-slate-800/90 backdrop-blur-xl border-slate-700 shadow-2xl">
+      <div className="min-h-screen bg-gradient-game flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-white/10 backdrop-blur-xl border-white/20 shadow-game">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-white">
-              {gameMode === 'create' ? 'Lobby erstellen' : 'Lobby beitreten'}
+            <CardTitle className="text-2xl font-bold text-white drop-shadow-lg">
+              {gameMode === 'create' ? 'Reich erschaffen' : 'Reich beitreten'}
             </CardTitle>
+            <p className="text-white/70 drop-shadow">
+              {gameMode === 'create' 
+                ? 'Erstelle dein eigenes mystisches Reich'
+                : 'Tritt einem bestehenden Reich bei'
+              }
+            </p>
           </CardHeader>
           
           <CardContent className="space-y-4">
@@ -556,7 +562,7 @@ const Lobby = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+    <div className="min-h-screen bg-gradient-game p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <Card className="mb-6 bg-slate-800/90 backdrop-blur-xl border-slate-700">
