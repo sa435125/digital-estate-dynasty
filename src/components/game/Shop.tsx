@@ -18,11 +18,11 @@ interface ShopItem {
 }
 
 interface ShopProps {
-  userCoins?: number;
+  userGold?: number;
   onPurchase?: (item: ShopItem) => void;
 }
 
-export function Shop({ userCoins = 1000, onPurchase }: ShopProps) {
+export function Shop({ userGold = 100, onPurchase }: ShopProps) {
   const { toast } = useToast();
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,11 +55,11 @@ export function Shop({ userCoins = 1000, onPurchase }: ShopProps) {
   };
 
   const handlePurchase = async (item: ShopItem) => {
-    if (userCoins < item.price) {
+    if (userGold < item.price) {
       toast({
-        title: "Nicht genug Coins",
-        description: `Du benötigst ${item.price} Coins für diesen Artikel`,
-        variant: "destructive",
+        title: "Nicht genug Gold",
+        description: "Du hast nicht genug Gold für diesen Kauf.",
+        variant: "destructive"
       });
       return;
     }
@@ -77,13 +77,30 @@ export function Shop({ userCoins = 1000, onPurchase }: ShopProps) {
         return;
       }
 
+      // Deduct gold and record purchase
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('gold')
+        .eq('user_id', user.id)
+        .single();
+
+      const newGold = (profile?.gold || 0) - item.price;
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ gold: newGold })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
       const { error } = await supabase
         .from('user_purchases')
         .insert({
           user_id: user.id,
           item_id: item.id,
           total_price: item.price,
-          quantity: 1
+          quantity: 1,
+          purchase_type: item.category
         });
 
       if (error) throw error;
@@ -175,7 +192,7 @@ export function Shop({ userCoins = 1000, onPurchase }: ShopProps) {
             FastEstate Shop
             <div className="ml-auto flex items-center gap-2 text-yellow-400">
               <Coins className="h-5 w-5" />
-              {userCoins.toLocaleString()}
+              {userGold.toLocaleString()}
             </div>
           </DialogTitle>
         </DialogHeader>
@@ -211,12 +228,12 @@ export function Shop({ userCoins = 1000, onPurchase }: ShopProps) {
                         </div>
                         <Button
                           onClick={() => handlePurchase(item)}
-                          disabled={purchasing === item.id || userCoins < item.price}
+                          disabled={purchasing === item.id || userGold < item.price}
                           className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:opacity-50"
                           size="sm"
                         >
                           {purchasing === item.id ? "Kaufe..." : 
-                           userCoins < item.price ? "Zu teuer" : "Kaufen"}
+                           userGold < item.price ? "Zu teuer" : "Kaufen"}
                         </Button>
                       </div>
                     </CardContent>

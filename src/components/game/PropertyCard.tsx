@@ -10,7 +10,7 @@ interface Property {
   price: number;
   rent: number;
   color: string;
-  owner?: number;
+  owner?: string | number;
   type: 'property' | 'railroad' | 'utility' | 'special';
 }
 

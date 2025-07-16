@@ -117,7 +117,7 @@ const Index = () => {
             ) : user ? (
               <div className="flex items-center gap-4">
                 <span className="text-white">Willkommen, {user.email}</span>
-                <Shop userCoins={1500} />
+                <Shop userGold={100} />
                 <Button
                   onClick={signOut}
                   variant="outline"

@@ -118,7 +118,9 @@ export type Database = {
           game_mode: string
           host_id: string | null
           id: string
+          is_private: boolean | null
           max_players: number
+          max_players_setting: number | null
           status: string
           updated_at: string
         }
@@ -128,7 +130,9 @@ export type Database = {
           game_mode: string
           host_id?: string | null
           id?: string
+          is_private?: boolean | null
           max_players?: number
+          max_players_setting?: number | null
           status?: string
           updated_at?: string
         }
@@ -138,7 +142,9 @@ export type Database = {
           game_mode?: string
           host_id?: string | null
           id?: string
+          is_private?: boolean | null
           max_players?: number
+          max_players_setting?: number | null
           status?: string
           updated_at?: string
         }
@@ -190,8 +196,11 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string | null
+          gold: number | null
           id: string
+          is_banned: boolean | null
           language: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
           updated_at: string
           user_id: string
         }
@@ -199,8 +208,11 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          gold?: number | null
           id?: string
+          is_banned?: boolean | null
           language?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
           user_id: string
         }
@@ -208,8 +220,11 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string | null
+          gold?: number | null
           id?: string
+          is_banned?: boolean | null
           language?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
           user_id?: string
         }
@@ -285,7 +300,9 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_active: boolean | null
           item_id: string
+          purchase_type: string | null
           quantity: number | null
           total_price: number
           user_id: string
@@ -293,7 +310,9 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_active?: boolean | null
           item_id: string
+          purchase_type?: string | null
           quantity?: number | null
           total_price: number
           user_id: string
@@ -301,7 +320,9 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_active?: boolean | null
           item_id?: string
+          purchase_type?: string | null
           quantity?: number | null
           total_price?: number
           user_id?: string
@@ -321,10 +342,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: { user_email: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "vip" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -451,6 +475,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["admin", "vip", "user"],
+    },
   },
 } as const
