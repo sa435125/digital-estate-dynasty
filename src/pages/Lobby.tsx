@@ -308,6 +308,7 @@ const startGame = async () => {
   }
 };
 
+
   const onSettingsUpdate = () => {
     if (lobbyId) {
       loadLobbyData();
