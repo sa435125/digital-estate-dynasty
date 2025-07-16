@@ -87,6 +87,8 @@ const Lobby = () => {
       return;
     }
 
+    console.log('Loaded players from DB:', players);
+
     const formattedPlayers: LobbyPlayer[] = players.map((player, index) => ({
       id: player.player_id,
       name: player.name,
@@ -95,6 +97,7 @@ const Lobby = () => {
       color: player.color
     }));
 
+    console.log('Formatted players:', formattedPlayers);
     setLobbyPlayers(formattedPlayers);
   };
 
@@ -166,7 +169,8 @@ const Lobby = () => {
         description: `Spiel-Code: ${code}`,
       });
 
-      await loadLobbyPlayers();
+      // Load players after everything is created
+      setTimeout(() => loadLobbyPlayers(), 100);
     } catch (error) {
       console.error('Error creating lobby:', error);
       toast({
@@ -256,7 +260,7 @@ const Lobby = () => {
         description: `Erfolgreich dem Spiel ${joinCode} beigetreten`,
       });
 
-      await loadLobbyPlayers();
+      setTimeout(() => loadLobbyPlayers(), 100);
     } catch (error) {
       console.error('Error joining lobby:', error);
       toast({
