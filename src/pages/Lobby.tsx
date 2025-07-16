@@ -272,24 +272,37 @@ export default function Lobby() {
     }
   };
 
-const startGame = async () => {
-  // Dummy-Daten zum Testen (ersetze sie später durch echte Variablen)
-  const dummyLobbyId = lobbyId  "dummy-lobby";
-  const dummyPlayerId = playerId  "dummy-player";
+  const startGame = async () => {
+    if (!lobbyId) return;
 
-  // Test: Schreibe IMMER GameData in den LocalStorage!
-  localStorage.setItem(
-    "gameData",
-    JSON.stringify({
-      lobbyId: dummyLobbyId,
-      playerId: dummyPlayerId,
-      // weitere Felder falls nötig
-    })
-  );
+    if (lobbyPlayers.length < 2) {
+      toast({
+        title: "Zu wenige Spieler",
+        description: "Mindestens 2 Spieler werden benötigt",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  // Navigiere zur Game-Seite
-  navigate(/game?lobby=${dummyLobbyId}&player=${dummyPlayerId});
-};
+    try {
+      // Update lobby status
+      await supabase
+        .from('lobbies')
+        .update({ status: 'playing' })
+        .eq('id', lobbyId);
+
+      // Navigate to game
+      navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
+
+    } catch (error: any) {
+      toast({
+        title: "Fehler",
+        description: "Spiel konnte nicht gestartet werden",
+        variant: "destructive",
+      });
+    }
+  };
+
   const onSettingsUpdate = () => {
     if (lobbyId) {
       loadLobbyData();
