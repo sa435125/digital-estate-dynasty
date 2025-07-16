@@ -272,36 +272,34 @@ export default function Lobby() {
     }
   };
 
-  const startGame = async () => {
-    if (!lobbyId) return;
+const startGame = async () => {
+  if (!lobbyId) {
+    toast({ title: "Fehler", description: "Lobby nicht gefunden", variant: "destructive" });
+    return;
+  }
+  if (lobbyPlayers.length < 2) {
+    toast({ title: "Zu wenige Spieler", description: "Mindestens 2 Spieler werden benötigt", variant: "destructive" });
+    return;
+  }
+  try {
+    const { error } = await supabase
+      .from('lobbies')
+      .update({ status: 'playing' })
+      .eq('id', lobbyId);
+    if (error) throw error;
 
-    if (lobbyPlayers.length < 2) {
-      toast({
-        title: "Zu wenige Spieler",
-        description: "Mindestens 2 Spieler werden benötigt",
-        variant: "destructive",
-      });
+    // Stelle sicher, dass playerId gesetzt ist
+    if (!playerId) {
+      toast({ title: "Fehler", description: "Spieler-ID fehlt", variant: "destructive" });
       return;
     }
 
-    try {
-      // Update lobby status
-      await supabase
-        .from('lobbies')
-        .update({ status: 'playing' })
-        .eq('id', lobbyId);
-
-      // Navigate to game
-      navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
-
-    } catch (error: any) {
-      toast({
-        title: "Fehler",
-        description: "Spiel konnte nicht gestartet werden",
-        variant: "destructive",
-      });
-    }
-  };
+    // Navigiere erst, wenn alles OK ist
+    navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
+  } catch (error: any) {
+    toast({ title: "Fehler", description: error.message || "Spiel konnte nicht gestartet werden", variant: "destructive" });
+  }
+};
 
   const onSettingsUpdate = () => {
     if (lobbyId) {
