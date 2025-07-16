@@ -298,7 +298,6 @@ const startGame = async () => {
     toast({ title: "Fehler", description: error.message || "Spiel konnte nicht gestartet werden", variant: "destructive" });
   }
 };
-
   const onSettingsUpdate = () => {
     if (lobbyId) {
       loadLobbyData();
