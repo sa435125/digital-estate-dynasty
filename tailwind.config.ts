@@ -61,6 +61,46 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				monopoly: {
+					green: 'hsl(var(--monopoly-green))',
+					red: 'hsl(var(--monopoly-red))',
+					blue: 'hsl(var(--monopoly-blue))',
+					orange: 'hsl(var(--monopoly-orange))',
+					purple: 'hsl(var(--monopoly-purple))',
+					yellow: 'hsl(var(--monopoly-yellow))',
+					brown: 'hsl(var(--monopoly-brown))',
+					pink: 'hsl(var(--monopoly-pink))'
+				},
+				'board-bg': 'hsl(var(--board-bg))',
+				'board-border': 'hsl(var(--board-border))',
+				'player-bg': 'hsl(var(--player-bg))',
+				'money-green': 'hsl(var(--money-green))',
+				'dice-bg': 'hsl(var(--dice-bg))'
+			},
+			backgroundImage: {
+				'gradient-board': 'var(--gradient-board)',
+				'gradient-money': 'var(--gradient-money)',
+				'gradient-property': 'var(--gradient-property)'
+			},
+			boxShadow: {
+				'property': '0 4px 12px hsl(var(--property-shadow))',
+				'dice': '0 2px 8px hsl(var(--dice-shadow))'
+			},
+			animation: {
+				'bounce-gentle': 'bounce 1s ease-in-out 2',
+				'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+				'slide-up': 'slideUp 0.3s ease-out',
+				'slide-down': 'slideDown 0.3s ease-out'
+			},
+			keyframes: {
+				slideUp: {
+					'0%': { transform: 'translateY(10px)', opacity: '0' },
+					'100%': { transform: 'translateY(0)', opacity: '1' }
+				},
+				slideDown: {
+					'0%': { transform: 'translateY(-10px)', opacity: '0' },
+					'100%': { transform: 'translateY(0)', opacity: '1' }
 				}
 			},
 			borderRadius: {
