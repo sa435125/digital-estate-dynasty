@@ -7,9 +7,12 @@ import { PlayerPanel } from "@/components/game/PlayerPanel";
 import { DiceRoller } from "@/components/game/DiceRoller";
 import { PropertyCard } from "@/components/game/PropertyCard";
 import { MoneyTransfer } from "@/components/game/MoneyTransfer";
+import { PropertyOwnershipList } from "@/components/game/PropertyOwnershipList";
+import { BankruptcyDialog } from "@/components/game/BankruptcyDialog";
+import { HouseBuildingDialog } from "@/components/game/HouseBuildingDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Home, Send, Crown } from "lucide-react";
+import { Home, Send, Crown, Building, LogOut } from "lucide-react";
 import { BOARD_PROPERTIES, Property } from "@/data/properties";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -48,6 +51,9 @@ const Game = () => {
   const [lobbyId, setLobbyId] = useState<string>("");
   const [currentPlayerId, setCurrentPlayerId] = useState<string>("");
   const [properties, setProperties] = useState<Property[]>(BOARD_PROPERTIES);
+  const [showBankruptcy, setShowBankruptcy] = useState(false);
+  const [showHouseBuilding, setShowHouseBuilding] = useState(false);
+  const [bankruptPlayer, setBankruptPlayer] = useState<Player | null>(null);
 
   // Initialize game from lobby data
   useEffect(() => {
@@ -398,6 +404,13 @@ const Game = () => {
       if (rent > 0 && owner) {
         const actualPayment = Math.min(player.money, rent);
         
+        // Check if player can't pay and becomes bankrupt
+        if (player.money < rent) {
+          setBankruptPlayer(player);
+          setShowBankruptcy(true);
+          return;
+        }
+        
         await updatePlayer(player.id, {
           ...player,
           money: player.money - actualPayment
@@ -538,6 +551,102 @@ const Game = () => {
     setSelectedProperty(null);
     await updateGameState({ ...gameState, gamePhase: 'waiting' });
     nextTurn();
+  };
+
+  const handlePropertySkip = async () => {
+    setSelectedProperty(null);
+    await updateGameState({ ...gameState, gamePhase: 'waiting' });
+    nextTurn();
+  };
+
+  const handleSellProperty = async (propertyId: string) => {
+    const player = bankruptPlayer;
+    if (!player) return;
+
+    const property = properties.find(p => p.id === propertyId);
+    if (!property) return;
+
+    const sellPrice = Math.floor(property.price * 0.5);
+    
+    await updatePlayer(player.id, {
+      ...player,
+      money: player.money + sellPrice,
+      properties: player.properties.filter(id => id !== propertyId)
+    });
+
+    setProperties(prev => {
+      const newProperties = [...prev];
+      const propertyIndex = newProperties.findIndex(p => p.id === propertyId);
+      newProperties[propertyIndex].owner = undefined;
+      newProperties[propertyIndex].houses = 0;
+      return newProperties;
+    });
+
+    toast({
+      title: "🏠 Immobilie verkauft",
+      description: `${property.name} für ${sellPrice.toLocaleString('de-DE')}€ verkauft`,
+    });
+
+    setShowBankruptcy(false);
+    setBankruptPlayer(null);
+  };
+
+  const handlePlayerGiveUp = async () => {
+    const player = bankruptPlayer;
+    if (!player) return;
+
+    // Free all properties
+    const playerProperties = properties.filter(p => p.owner === parseInt(player.id));
+    setProperties(prev => {
+      const newProperties = [...prev];
+      playerProperties.forEach(prop => {
+        const index = newProperties.findIndex(p => p.id === prop.id);
+        newProperties[index].owner = undefined;
+        newProperties[index].houses = 0;
+      });
+      return newProperties;
+    });
+
+    // Mark player as bankrupt
+    await updatePlayer(player.id, {
+      ...player,
+      money: 0,
+      properties: []
+    });
+
+    toast({
+      title: "💸 Spieler aufgegeben",
+      description: `${player.name} hat aufgegeben. Alle Immobilien sind wieder frei.`,
+    });
+
+    setShowBankruptcy(false);
+    setBankruptPlayer(null);
+    nextTurn();
+  };
+
+  const handleBuildHouse = async (propertyId: string, houses: number) => {
+    const player = players.find(p => p.id === currentPlayerId);
+    const property = properties.find(p => p.id === propertyId);
+    if (!player || !property) return;
+
+    const cost = Math.floor(property.price * 0.5) * houses;
+    
+    await updatePlayer(player.id, {
+      ...player,
+      money: player.money - cost
+    });
+
+    setProperties(prev => {
+      const newProperties = [...prev];
+      const propertyIndex = newProperties.findIndex(p => p.id === propertyId);
+      newProperties[propertyIndex].houses = (newProperties[propertyIndex].houses || 0) + houses;
+      return newProperties;
+    });
+
+    toast({
+      title: "🏗️ Häuser gebaut",
+      description: `${houses} ${houses === 1 ? 'Haus' : 'Häuser'} auf ${property.name} gebaut`,
+    });
   };
 
   const nextTurn = async () => {
@@ -719,8 +828,11 @@ const Game = () => {
               </CardContent>
             </Card>
 
+            {/* Property Ownership */}
+            <PropertyOwnershipList players={players} properties={properties} />
+
             {/* Quick Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <Button
                 onClick={() => setShowMoneyTransfer(true)}
                 variant="outline"
@@ -728,16 +840,27 @@ const Game = () => {
                 disabled={gameState.gamePhase !== 'waiting'}
                 size="sm"
               >
-                <Send className="h-3 w-3 mr-1" />
-                Senden
+                <Send className="h-2 w-2 mr-1" />
+                💰
               </Button>
               <Button
-                onClick={() => {/* TODO: Show detailed players modal */}}
+                onClick={() => setShowHouseBuilding(true)}
+                variant="outline"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                disabled={gameState.gamePhase !== 'waiting' || gameState.currentPlayerId !== currentPlayerId}
+                size="sm"
+              >
+                <Building className="h-2 w-2 mr-1" />
+                🏠
+              </Button>
+              <Button
+                onClick={() => navigate('/lobby')}
                 variant="outline"
                 className="border-slate-600 text-slate-300 hover:bg-slate-700"
                 size="sm"
               >
-                👥 Spieler
+                <LogOut className="h-2 w-2 mr-1" />
+                🚪
               </Button>
             </div>
           </div>
@@ -788,6 +911,9 @@ const Game = () => {
               gamePhase={gameState.gamePhase}
             />
 
+            {/* Property Ownership */}
+            <PropertyOwnershipList players={players} properties={properties} />
+
             {/* All Players */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-white">Alle Spieler</h3>
@@ -810,15 +936,26 @@ const Game = () => {
               ))}
             </div>
 
-            {/* Money Transfer Button */}
-            <Button
-              onClick={() => setShowMoneyTransfer(true)}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-              disabled={gameState.gamePhase !== 'waiting'}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Geld senden
-            </Button>
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <Button
+                onClick={() => setShowMoneyTransfer(true)}
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                disabled={gameState.gamePhase !== 'waiting'}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Geld senden
+              </Button>
+              
+              <Button
+                onClick={() => setShowHouseBuilding(true)}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
+                disabled={gameState.gamePhase !== 'waiting' || gameState.currentPlayerId !== currentPlayerId}
+              >
+                <Building className="h-4 w-4 mr-2" />
+                Häuser bauen
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -827,10 +964,30 @@ const Game = () => {
           <PropertyCard
             property={selectedProperty}
             onBuy={() => handlePropertyPurchase(selectedProperty)}
-            onClose={() => setSelectedProperty(null)}
-            canBuy={gameState.gamePhase === 'property' && gameState.currentPlayerId === currentPlayerId}
+            onClose={() => handlePropertySkip()}
+            canBuy={gameState.gamePhase === 'property' && gameState.currentPlayerId === currentPlayerId && !selectedProperty.owner}
           />
         )}
+
+        {/* Bankruptcy Dialog */}
+        {bankruptPlayer && (
+          <BankruptcyDialog
+            player={bankruptPlayer}
+            properties={properties}
+            onSellProperty={handleSellProperty}
+            onGiveUp={handlePlayerGiveUp}
+            isOpen={showBankruptcy}
+          />
+        )}
+
+        {/* House Building Dialog */}
+        <HouseBuildingDialog
+          player={myPlayer}
+          properties={properties}
+          onBuildHouse={handleBuildHouse}
+          isOpen={showHouseBuilding}
+          onClose={() => setShowHouseBuilding(false)}
+        />
 
         {/* Money Transfer Modal */}
         {showMoneyTransfer && (
