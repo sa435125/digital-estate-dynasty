@@ -17,8 +17,13 @@ interface PropertyOwnershipListProps {
 }
 
 export function PropertyOwnershipList({ players, properties }: PropertyOwnershipListProps) {
+  console.log('PropertyOwnershipList - players:', players);
+  console.log('PropertyOwnershipList - properties:', properties);
+  
   const getOwnedProperties = (playerId: string) => {
-    return properties.filter(p => p.owner === parseInt(playerId));
+    const owned = properties.filter(p => p.owner === parseInt(playerId));
+    console.log(`Player ${playerId} owns:`, owned);
+    return owned;
   };
 
   const getColorGroups = (playerId: string) => {
@@ -73,12 +78,12 @@ export function PropertyOwnershipList({ players, properties }: PropertyOwnership
                 <div className="ml-6 space-y-1">
                   {/* Color Groups */}
                   {Object.entries(colorGroups).map(([color, props]) => (
-                    <div key={color} className="flex items-center gap-2 text-sm">
+                    <div key={color} className="flex flex-wrap items-center gap-2 text-sm">
                       <div 
                         className={cn("w-3 h-3 rounded border", color)}
                       />
                       <span className={hasMonopoly(player.id, color) ? "font-bold text-green-600" : ""}>
-                        {props.map(p => p.name).join(", ")}
+                        {props.map(p => `${p.name}${p.houses ? ` (${p.houses}🏠)` : ''}`).join(", ")}
                       </span>
                       {hasMonopoly(player.id, color) && (
                         <Badge variant="default" className="text-xs bg-green-500">

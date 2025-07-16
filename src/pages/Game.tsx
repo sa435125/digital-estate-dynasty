@@ -498,11 +498,15 @@ const Game = () => {
   };
 
   const calculateRent = (property: Property): number => {
+    console.log('Calculating rent for property:', property);
+    
     if (property.type === 'railroad') {
       const ownedRailroads = properties.filter(p => 
         p.type === 'railroad' && p.owner === property.owner
       ).length;
-      return 25 * Math.pow(2, ownedRailroads - 1);
+      const rent = 25 * Math.pow(2, ownedRailroads - 1);
+      console.log(`Railroad rent: ${rent} (${ownedRailroads} railroads)`);
+      return rent;
     }
     
     if (property.type === 'utility') {
@@ -511,40 +515,71 @@ const Game = () => {
       ).length;
       const multiplier = ownedUtilities === 1 ? 4 : 10;
       const diceSum = gameState.lastDiceRoll ? gameState.lastDiceRoll.dice1 + gameState.lastDiceRoll.dice2 : 7;
-      return diceSum * multiplier;
+      const rent = diceSum * multiplier;
+      console.log(`Utility rent: ${rent} (dice: ${diceSum}, multiplier: ${multiplier})`);
+      return rent;
     }
     
-    // Regular property
+    // Regular property - check for monopoly and houses
     const houses = property.houses || 0;
-    if (houses === 0) return property.rent;
-    if (houses === 1) return property.rent * 5;
-    if (houses === 2) return property.rent * 15;
-    if (houses === 3) return property.rent * 45;
-    if (houses === 4) return property.rent * 80;
-    return property.rent * 110; // Hotel
+    const owner = players.find(p => parseInt(p.id) === property.owner);
+    
+    // Check if owner has monopoly for this color
+    const colorGroup = properties.filter(p => p.color === property.color && p.type === 'property');
+    const ownedInGroup = properties.filter(p => p.color === property.color && p.type === 'property' && p.owner === property.owner);
+    const hasMonopoly = colorGroup.length === ownedInGroup.length;
+    
+    let rent = property.rent;
+    
+    if (houses === 0 && hasMonopoly) {
+      rent = property.rent * 2; // Double rent for monopoly without houses
+    } else if (houses === 1) {
+      rent = property.rent * 5;
+    } else if (houses === 2) {
+      rent = property.rent * 15;
+    } else if (houses === 3) {
+      rent = property.rent * 45;
+    } else if (houses === 4) {
+      rent = property.rent * 80;
+    } else if (houses === 5) {
+      rent = property.rent * 110; // Hotel
+    }
+    
+    console.log(`Property rent: ${rent} (base: ${property.rent}, houses: ${houses}, monopoly: ${hasMonopoly})`);
+    return rent;
   };
 
   const handlePropertyPurchase = async (property: Property) => {
     const player = players.find(p => p.id === currentPlayerId);
     if (!player) return;
     
+    console.log('Purchasing property:', property, 'for player:', player);
+    
     if (player.money >= property.price) {
+      // Update player in database
       await updatePlayer(player.id, {
         ...player,
         money: player.money - property.price,
         properties: [...player.properties, property.id]
       });
       
+      // Update properties state locally
       setProperties(prev => {
         const newProperties = [...prev];
         const propertyIndex = newProperties.findIndex(p => p.id === property.id);
-        newProperties[propertyIndex].owner = parseInt(player.id);
+        if (propertyIndex !== -1) {
+          newProperties[propertyIndex] = {
+            ...newProperties[propertyIndex],
+            owner: parseInt(player.id)
+          };
+        }
+        console.log('Updated properties state:', newProperties);
         return newProperties;
       });
       
       toast({
         title: "🏰 Besitztum erworben!",
-        description: `${player.name} hat ${property.name} für ${property.price}€ gekauft`,
+        description: `${player.name} hat ${property.name} für ${property.price.toLocaleString('de-DE')}€ gekauft`,
       });
     }
     
