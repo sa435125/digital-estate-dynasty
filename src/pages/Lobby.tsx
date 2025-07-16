@@ -48,12 +48,22 @@ const Lobby = () => {
     "bg-purple-500", "bg-pink-500", "bg-orange-500", "bg-teal-500"
   ];
 
-  // Real-time subscription for lobby updates
+  // Real-time subscription for lobby updates + polling fallback
   useEffect(() => {
     if (!lobbyId) return;
 
-    console.log('Setting up subscription for lobby:', lobbyId);
+    console.log('Setting up subscription and polling for lobby:', lobbyId);
 
+    // Load players immediately
+    loadLobbyPlayers();
+
+    // Set up polling as fallback (every 2 seconds)
+    const pollInterval = setInterval(() => {
+      console.log('Polling for player updates...');
+      loadLobbyPlayers();
+    }, 2000);
+
+    // Set up real-time subscription
     const channel = supabase
       .channel(`lobby-players-${lobbyId}`)
       .on(
@@ -65,8 +75,8 @@ const Lobby = () => {
           filter: `lobby_id=eq.${lobbyId}`
         },
         (payload) => {
-          console.log('New player joined:', payload);
-          setTimeout(() => loadLobbyPlayers(), 200);
+          console.log('Real-time: New player joined:', payload);
+          loadLobbyPlayers();
         }
       )
       .on(
@@ -78,20 +88,17 @@ const Lobby = () => {
           filter: `lobby_id=eq.${lobbyId}`
         },
         (payload) => {
-          console.log('Player left:', payload);
-          setTimeout(() => loadLobbyPlayers(), 200);
+          console.log('Real-time: Player left:', payload);
+          loadLobbyPlayers();
         }
       )
       .subscribe((status) => {
-        console.log('Subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          // Load players when subscription is ready
-          setTimeout(() => loadLobbyPlayers(), 300);
-        }
+        console.log('Real-time subscription status:', status);
       });
 
     return () => {
-      console.log('Cleaning up subscription for lobby:', lobbyId);
+      console.log('Cleaning up subscription and polling for lobby:', lobbyId);
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [lobbyId]);
