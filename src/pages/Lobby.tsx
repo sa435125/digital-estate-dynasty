@@ -52,8 +52,11 @@ const Lobby = () => {
   useEffect(() => {
     if (!lobbyId) return;
 
+    // Load players initially
+    loadLobbyPlayers();
+
     const channel = supabase
-      .channel('lobby-changes')
+      .channel(`lobby-${lobbyId}`)
       .on(
         'postgres_changes',
         {
@@ -62,7 +65,8 @@ const Lobby = () => {
           table: 'lobby_players',
           filter: `lobby_id=eq.${lobbyId}`
         },
-        () => {
+        (payload) => {
+          console.log('Real-time update:', payload);
           loadLobbyPlayers();
         }
       )
@@ -168,9 +172,6 @@ const Lobby = () => {
         title: "🎮 Lobby erstellt!",
         description: `Spiel-Code: ${code}`,
       });
-
-      // Load players after everything is created
-      setTimeout(() => loadLobbyPlayers(), 100);
     } catch (error) {
       console.error('Error creating lobby:', error);
       toast({
@@ -259,8 +260,6 @@ const Lobby = () => {
         title: "🎮 Lobby beigetreten!",
         description: `Erfolgreich dem Spiel ${joinCode} beigetreten`,
       });
-
-      setTimeout(() => loadLobbyPlayers(), 100);
     } catch (error) {
       console.error('Error joining lobby:', error);
       toast({
