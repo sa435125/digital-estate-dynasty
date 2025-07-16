@@ -52,8 +52,7 @@ const Lobby = () => {
   useEffect(() => {
     if (!lobbyId) return;
 
-    // Load players initially
-    loadLobbyPlayers();
+    console.log('Setting up subscription for lobby:', lobbyId);
 
     const channel = supabase
       .channel(`lobby-${lobbyId}`)
@@ -66,13 +65,21 @@ const Lobby = () => {
           filter: `lobby_id=eq.${lobbyId}`
         },
         (payload) => {
-          console.log('Real-time update:', payload);
-          loadLobbyPlayers();
+          console.log('Real-time update received:', payload);
+          // Delay to ensure database consistency
+          setTimeout(() => loadLobbyPlayers(), 500);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          // Load players when subscription is ready
+          loadLobbyPlayers();
+        }
+      });
 
     return () => {
+      console.log('Cleaning up subscription');
       supabase.removeChannel(channel);
     };
   }, [lobbyId]);
@@ -172,6 +179,12 @@ const Lobby = () => {
         title: "🎮 Lobby erstellt!",
         description: `Spiel-Code: ${code}`,
       });
+
+      // Force reload players after creating
+      setTimeout(() => {
+        console.log('Force loading players after create');
+        loadLobbyPlayers();
+      }, 1000);
     } catch (error) {
       console.error('Error creating lobby:', error);
       toast({
@@ -260,6 +273,12 @@ const Lobby = () => {
         title: "🎮 Lobby beigetreten!",
         description: `Erfolgreich dem Spiel ${joinCode} beigetreten`,
       });
+
+      // Force reload players after joining
+      setTimeout(() => {
+        console.log('Force loading players after join');
+        loadLobbyPlayers();
+      }, 1000);
     } catch (error) {
       console.error('Error joining lobby:', error);
       toast({
