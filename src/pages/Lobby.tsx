@@ -292,16 +292,16 @@ const startGame = async () => {
       .eq('id', lobbyId);
     if (error) throw error;
 
-    // Speichere initiale Spieldaten im LocalStorage
+    // Speichere Spieldaten im LocalStorage, damit Game.tsx sie laden kann
     const initialGameData = {
       lobbyId,
       playerId,
-      // weitere notwendige Felder je nach Spiellogik
+      // falls nötig, weitere Felder (z.B. Spielername, LobbyCode etc.)
     };
     localStorage.setItem("gameData", JSON.stringify(initialGameData));
 
-    // Navigiere zur Game-Seite mit korrekten Parametern
-    navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
+    // Jetzt zur Game-Seite navigieren
+    navigate(/game?lobby=${lobbyId}&player=${playerId});
   } catch (error: any) {
     toast({ title: "Fehler", description: error.message || "Spiel konnte nicht gestartet werden", variant: "destructive" });
   }
