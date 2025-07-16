@@ -109,7 +109,7 @@ const Lobby = () => {
     }
 
     const code = generateGameCode();
-    const hostPlayerId = `player-${Date.now()}`;
+    const hostPlayerId = crypto.randomUUID();
     
     try {
       // Create lobby in database
@@ -221,7 +221,7 @@ const Lobby = () => {
       }
 
       // Add player to lobby
-      const newPlayerId = `player-${Date.now()}`;
+      const newPlayerId = crypto.randomUUID();
       const availableColors = playerColors.filter((color, index) => index < 8);
       const playerColor = availableColors[count || 0] || playerColors[0];
 
@@ -330,7 +330,7 @@ const Lobby = () => {
       !lobbyPlayers.some(player => player.color === color)
     );
     
-    const botId = `bot-${Date.now()}`;
+    const botId = crypto.randomUUID();
     const botName = botNames[Math.floor(Math.random() * botNames.length)];
     const botColor = availableColors[0] || playerColors[lobbyPlayers.length];
 
