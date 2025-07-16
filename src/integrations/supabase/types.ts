@@ -14,7 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      lobbies: {
+        Row: {
+          code: string
+          created_at: string
+          game_mode: string
+          host_id: string | null
+          id: string
+          max_players: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          game_mode: string
+          host_id?: string | null
+          id?: string
+          max_players?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          game_mode?: string
+          host_id?: string | null
+          id?: string
+          max_players?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      lobby_players: {
+        Row: {
+          avatar: string
+          color: string
+          id: string
+          is_host: boolean
+          joined_at: string
+          lobby_id: string
+          name: string
+          player_id: string
+        }
+        Insert: {
+          avatar: string
+          color: string
+          id?: string
+          is_host?: boolean
+          joined_at?: string
+          lobby_id: string
+          name: string
+          player_id: string
+        }
+        Update: {
+          avatar?: string
+          color?: string
+          id?: string
+          is_host?: boolean
+          joined_at?: string
+          lobby_id?: string
+          name?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lobby_players_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "lobbies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

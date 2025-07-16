@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Copy, 
   Users, 
@@ -35,6 +36,8 @@ const Lobby = () => {
   const [lobbyPlayers, setLobbyPlayers] = useState<LobbyPlayer[]>([]);
   const [isHost, setIsHost] = useState(false);
   const [lobbyCreated, setLobbyCreated] = useState(false);
+  const [lobbyId, setLobbyId] = useState<string | null>(null);
+  const [playerId, setPlayerId] = useState<string>("");
 
   const generateGameCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -45,7 +48,57 @@ const Lobby = () => {
     "bg-purple-500", "bg-pink-500", "bg-orange-500", "bg-teal-500"
   ];
 
-  const createLobby = () => {
+  // Real-time subscription for lobby updates
+  useEffect(() => {
+    if (!lobbyId) return;
+
+    const channel = supabase
+      .channel('lobby-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'lobby_players',
+          filter: `lobby_id=eq.${lobbyId}`
+        },
+        () => {
+          loadLobbyPlayers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [lobbyId]);
+
+  const loadLobbyPlayers = async () => {
+    if (!lobbyId) return;
+
+    const { data: players, error } = await supabase
+      .from('lobby_players')
+      .select('*')
+      .eq('lobby_id', lobbyId)
+      .order('joined_at', { ascending: true });
+
+    if (error) {
+      console.error('Error loading players:', error);
+      return;
+    }
+
+    const formattedPlayers: LobbyPlayer[] = players.map((player, index) => ({
+      id: player.player_id,
+      name: player.name,
+      isHost: player.is_host,
+      avatar: player.avatar,
+      color: player.color
+    }));
+
+    setLobbyPlayers(formattedPlayers);
+  };
+
+  const createLobby = async () => {
     if (!playerName.trim()) {
       toast({
         title: "Name erforderlich",
@@ -56,27 +109,74 @@ const Lobby = () => {
     }
 
     const code = generateGameCode();
-    setGameCode(code);
-    setIsHost(true);
-    setLobbyCreated(true);
+    const hostPlayerId = `player-${Date.now()}`;
     
-    const hostPlayer: LobbyPlayer = {
-      id: "host",
-      name: playerName,
-      isHost: true,
-      avatar: playerName.charAt(0).toUpperCase(),
-      color: playerColors[0]
-    };
-    
-    setLobbyPlayers([hostPlayer]);
-    
-    toast({
-      title: "🎮 Lobby erstellt!",
-      description: `Spiel-Code: ${code}`,
-    });
+    try {
+      // Create lobby in database
+      const { data: lobby, error: lobbyError } = await supabase
+        .from('lobbies')
+        .insert({
+          code: code,
+          host_id: hostPlayerId,
+          game_mode: 'classic',
+          status: 'waiting'
+        })
+        .select()
+        .single();
+
+      if (lobbyError) {
+        toast({
+          title: "Fehler beim Erstellen",
+          description: "Lobby konnte nicht erstellt werden",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Add host as first player
+      const { error: playerError } = await supabase
+        .from('lobby_players')
+        .insert({
+          lobby_id: lobby.id,
+          player_id: hostPlayerId,
+          name: playerName,
+          avatar: playerName.charAt(0).toUpperCase(),
+          color: playerColors[0],
+          is_host: true
+        });
+
+      if (playerError) {
+        toast({
+          title: "Fehler beim Beitreten",
+          description: "Konnte Lobby nicht beitreten",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setGameCode(code);
+      setLobbyId(lobby.id);
+      setPlayerId(hostPlayerId);
+      setIsHost(true);
+      setLobbyCreated(true);
+      
+      toast({
+        title: "🎮 Lobby erstellt!",
+        description: `Spiel-Code: ${code}`,
+      });
+
+      await loadLobbyPlayers();
+    } catch (error) {
+      console.error('Error creating lobby:', error);
+      toast({
+        title: "Fehler",
+        description: "Unerwarteter Fehler beim Erstellen der Lobby",
+        variant: "destructive"
+      });
+    }
   };
 
-  const joinLobby = () => {
+  const joinLobby = async () => {
     if (!playerName.trim() || !joinCode.trim()) {
       toast({
         title: "Angaben unvollständig",
@@ -86,34 +186,84 @@ const Lobby = () => {
       return;
     }
 
-    // Simulate joining a lobby
-    setGameCode(joinCode);
-    setLobbyCreated(true);
-    setIsHost(false);
+    try {
+      // Find lobby by code
+      const { data: lobby, error: lobbyError } = await supabase
+        .from('lobbies')
+        .select('*')
+        .eq('code', joinCode.toUpperCase())
+        .eq('status', 'waiting')
+        .single();
 
-    const newPlayer: LobbyPlayer = {
-      id: playerName.toLowerCase(),
-      name: playerName,
-      isHost: false,
-      avatar: playerName.charAt(0).toUpperCase(),
-      color: playerColors[1]
-    };
+      if (lobbyError || !lobby) {
+        toast({
+          title: "Lobby nicht gefunden",
+          description: "Spiel-Code ungültig oder Spiel bereits gestartet",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    setLobbyPlayers([
-      {
-        id: "host",
-        name: "Gastgeber",
-        isHost: true,
-        avatar: "G",
-        color: playerColors[0]
-      },
-      newPlayer
-    ]);
+      // Check if lobby is full
+      const { count } = await supabase
+        .from('lobby_players')
+        .select('*', { count: 'exact', head: true })
+        .eq('lobby_id', lobby.id);
 
-    toast({
-      title: "🎮 Lobby beigetreten!",
-      description: `Erfolgreich dem Spiel ${joinCode} beigetreten`,
-    });
+      if (count && count >= 8) {
+        toast({
+          title: "Lobby voll",
+          description: "Diese Lobby ist bereits voll",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Add player to lobby
+      const newPlayerId = `player-${Date.now()}`;
+      const availableColors = playerColors.filter((color, index) => index < 8);
+      const playerColor = availableColors[count || 0] || playerColors[0];
+
+      const { error: playerError } = await supabase
+        .from('lobby_players')
+        .insert({
+          lobby_id: lobby.id,
+          player_id: newPlayerId,
+          name: playerName,
+          avatar: playerName.charAt(0).toUpperCase(),
+          color: playerColor,
+          is_host: false
+        });
+
+      if (playerError) {
+        toast({
+          title: "Fehler beim Beitreten",
+          description: "Konnte Lobby nicht beitreten",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setGameCode(joinCode.toUpperCase());
+      setLobbyId(lobby.id);
+      setPlayerId(newPlayerId);
+      setIsHost(false);
+      setLobbyCreated(true);
+
+      toast({
+        title: "🎮 Lobby beigetreten!",
+        description: `Erfolgreich dem Spiel ${joinCode} beigetreten`,
+      });
+
+      await loadLobbyPlayers();
+    } catch (error) {
+      console.error('Error joining lobby:', error);
+      toast({
+        title: "Fehler",
+        description: "Unerwarteter Fehler beim Beitreten der Lobby",
+        variant: "destructive"
+      });
+    }
   };
 
   const copyGameCode = () => {
@@ -124,7 +274,7 @@ const Lobby = () => {
     });
   };
 
-  const startGame = () => {
+  const startGame = async () => {
     if (lobbyPlayers.length < 2) {
       toast({
         title: "Nicht genug Spieler",
@@ -134,38 +284,88 @@ const Lobby = () => {
       return;
     }
 
-    // Pass lobby data to game
-    const gameData = {
-      players: lobbyPlayers,
-      gameCode: gameCode
-    };
-    
-    localStorage.setItem('monopoly-game-data', JSON.stringify(gameData));
-    navigate("/game");
+    if (!isHost || !lobbyId) return;
+
+    try {
+      // Update lobby status to started
+      const { error } = await supabase
+        .from('lobbies')
+        .update({ status: 'started' })
+        .eq('id', lobbyId);
+
+      if (error) {
+        toast({
+          title: "Fehler beim Starten",
+          description: "Spiel konnte nicht gestartet werden",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Pass lobby data to game
+      const gameData = {
+        players: lobbyPlayers,
+        gameCode: gameCode,
+        lobbyId: lobbyId
+      };
+      
+      localStorage.setItem('monopoly-game-data', JSON.stringify(gameData));
+      navigate("/game");
+    } catch (error) {
+      console.error('Error starting game:', error);
+      toast({
+        title: "Fehler",
+        description: "Unerwarteter Fehler beim Starten des Spiels",
+        variant: "destructive"
+      });
+    }
   };
 
-  const addBotPlayer = () => {
-    if (lobbyPlayers.length >= 8) return;
+  const addBotPlayer = async () => {
+    if (lobbyPlayers.length >= 8 || !isHost || !lobbyId) return;
     
     const botNames = ["AI-Tycoon", "Robo-Millionär", "Cyber-Baron", "Digital-Mogul"];
     const availableColors = playerColors.filter(color => 
       !lobbyPlayers.some(player => player.color === color)
     );
     
-    const newBot: LobbyPlayer = {
-      id: `bot-${Date.now()}`,
-      name: botNames[Math.floor(Math.random() * botNames.length)],
-      isHost: false,
-      avatar: "🤖",
-      color: availableColors[0] || playerColors[lobbyPlayers.length]
-    };
+    const botId = `bot-${Date.now()}`;
+    const botName = botNames[Math.floor(Math.random() * botNames.length)];
+    const botColor = availableColors[0] || playerColors[lobbyPlayers.length];
 
-    setLobbyPlayers(prev => [...prev, newBot]);
-    
-    toast({
-      title: "🤖 KI-Spieler hinzugefügt",
-      description: `${newBot.name} ist der Lobby beigetreten`,
-    });
+    try {
+      const { error } = await supabase
+        .from('lobby_players')
+        .insert({
+          lobby_id: lobbyId,
+          player_id: botId,
+          name: botName,
+          avatar: "🤖",
+          color: botColor,
+          is_host: false
+        });
+
+      if (error) {
+        toast({
+          title: "Fehler",
+          description: "Bot konnte nicht hinzugefügt werden",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "🤖 KI-Spieler hinzugefügt",
+        description: `${botName} ist der Lobby beigetreten`,
+      });
+    } catch (error) {
+      console.error('Error adding bot:', error);
+      toast({
+        title: "Fehler",
+        description: "Unerwarteter Fehler beim Hinzufügen des Bots",
+        variant: "destructive"
+      });
+    }
   };
 
   if (!gameMode) {
