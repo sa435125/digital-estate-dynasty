@@ -277,6 +277,10 @@ const startGame = async () => {
     toast({ title: "Fehler", description: "Lobby nicht gefunden", variant: "destructive" });
     return;
   }
+  if (!playerId) {
+    toast({ title: "Fehler", description: "Spieler-ID fehlt", variant: "destructive" });
+    return;
+  }
   if (lobbyPlayers.length < 2) {
     toast({ title: "Zu wenige Spieler", description: "Mindestens 2 Spieler werden benötigt", variant: "destructive" });
     return;
@@ -288,13 +292,7 @@ const startGame = async () => {
       .eq('id', lobbyId);
     if (error) throw error;
 
-    // Stelle sicher, dass playerId gesetzt ist
-    if (!playerId) {
-      toast({ title: "Fehler", description: "Spieler-ID fehlt", variant: "destructive" });
-      return;
-    }
-
-    // Navigiere erst, wenn alles OK ist
+    // Navigiere zur Game-Seite mit korrekten Parametern
     navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
   } catch (error: any) {
     toast({ title: "Fehler", description: error.message || "Spiel konnte nicht gestartet werden", variant: "destructive" });
