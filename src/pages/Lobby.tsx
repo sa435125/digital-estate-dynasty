@@ -55,37 +55,51 @@ const Lobby = () => {
     console.log('Setting up subscription for lobby:', lobbyId);
 
     const channel = supabase
-      .channel(`lobby-${lobbyId}`)
+      .channel(`lobby-players-${lobbyId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'lobby_players',
           filter: `lobby_id=eq.${lobbyId}`
         },
         (payload) => {
-          console.log('Real-time update received:', payload);
-          // Delay to ensure database consistency
-          setTimeout(() => loadLobbyPlayers(), 500);
+          console.log('New player joined:', payload);
+          setTimeout(() => loadLobbyPlayers(), 200);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'lobby_players',
+          filter: `lobby_id=eq.${lobbyId}`
+        },
+        (payload) => {
+          console.log('Player left:', payload);
+          setTimeout(() => loadLobbyPlayers(), 200);
         }
       )
       .subscribe((status) => {
         console.log('Subscription status:', status);
         if (status === 'SUBSCRIBED') {
           // Load players when subscription is ready
-          loadLobbyPlayers();
+          setTimeout(() => loadLobbyPlayers(), 300);
         }
       });
 
     return () => {
-      console.log('Cleaning up subscription');
+      console.log('Cleaning up subscription for lobby:', lobbyId);
       supabase.removeChannel(channel);
     };
   }, [lobbyId]);
 
   const loadLobbyPlayers = async () => {
     if (!lobbyId) return;
+
+    console.log('Loading players for lobby:', lobbyId);
 
     const { data: players, error } = await supabase
       .from('lobby_players')
