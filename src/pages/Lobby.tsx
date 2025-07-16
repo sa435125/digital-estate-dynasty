@@ -1,35 +1,40 @@
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useNavigate } from "react-router-dom";
+import { Copy, Users, Play, ArrowLeft, Settings, Plus, Lock, Globe } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Copy, 
-  Users, 
-  Play, 
-  Crown, 
-  UserPlus,
-  ArrowLeft,
-  Settings,
-  Gamepad2
-} from "lucide-react";
+import { LobbySettings } from "@/components/game/LobbySettings";
+
+interface LobbyData {
+  id: string;
+  code: string;
+  status: string;
+  host_id: string;
+  is_private: boolean;
+  max_players_setting: number;
+}
 
 interface LobbyPlayer {
   id: string;
   name: string;
-  isHost: boolean;
+  player_id: string;
+  is_host: boolean;
   avatar: string;
   color: string;
 }
 
-const Lobby = () => {
+export default function Lobby() {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [gameMode, setGameMode] = useState<'create' | 'join' | null>(null);
+  
+  const [gameMode, setGameMode] = useState<'create' | 'join' | 'browse' | null>(
+    searchParams.get('mode') === 'join' ? 'join' : null
+  );
   const [gameCode, setGameCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [playerName, setPlayerName] = useState("");
@@ -37,7 +42,11 @@ const Lobby = () => {
   const [isHost, setIsHost] = useState(false);
   const [lobbyCreated, setLobbyCreated] = useState(false);
   const [lobbyId, setLobbyId] = useState<string | null>(null);
+  const [lobbyData, setLobbyData] = useState<LobbyData | null>(null);
   const [playerId, setPlayerId] = useState<string>("");
+  const [showSettings, setShowSettings] = useState(false);
+  const [publicLobbies, setPublicLobbies] = useState<any[]>([]);
+  const [showPublicLobbies, setShowPublicLobbies] = useState(false);
 
   const generateGameCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -48,230 +57,137 @@ const Lobby = () => {
     "bg-purple-500", "bg-pink-500", "bg-orange-500", "bg-teal-500"
   ];
 
-  // Real-time subscription for lobby updates + polling fallback
   useEffect(() => {
-    if (!lobbyId) return;
+    loadPublicLobbies();
+  }, []);
 
-    console.log('Setting up subscription and polling for lobby:', lobbyId);
+  const loadPublicLobbies = async () => {
+    const { data, error } = await supabase
+      .from('lobbies')
+      .select(`
+        *,
+        lobby_players(*)
+      `)
+      .eq('is_private', false)
+      .eq('status', 'waiting')
+      .order('created_at', { ascending: false });
 
-    // Load players immediately
-    loadLobbyPlayers();
-
-    // Set up polling as fallback (every 2 seconds)
-    const pollInterval = setInterval(() => {
-      console.log('Polling for player updates...');
-      loadLobbyPlayers();
-    }, 2000);
-
-    // Set up real-time subscription for lobby status changes
-    const channel = supabase
-      .channel(`lobby-players-${lobbyId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'lobby_players',
-          filter: `lobby_id=eq.${lobbyId}`
-        },
-        (payload) => {
-          console.log('Real-time: New player joined:', payload);
-          loadLobbyPlayers();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'lobby_players',
-          filter: `lobby_id=eq.${lobbyId}`
-        },
-        (payload) => {
-          console.log('Real-time: Player left:', payload);
-          loadLobbyPlayers();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'lobbies',
-          filter: `id=eq.${lobbyId}`
-        },
-        (payload) => {
-          console.log('Lobby status changed:', payload);
-          // Check if game was started
-          if (payload.new.status === 'started') {
-            // Redirect all players to game
-            const gameData = {
-              players: lobbyPlayers,
-              gameCode: gameCode,
-              lobbyId: lobbyId,
-              playerId: playerId
-            };
-            localStorage.setItem('monopoly-game-data', JSON.stringify(gameData));
-            
-            toast({
-              title: "🎮 Spiel gestartet!",
-              description: "Du wirst ins Spiel weitergeleitet...",
-            });
-            
-            setTimeout(() => {
-              navigate("/game");
-            }, 1000);
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('Real-time subscription status:', status);
-      });
-
-    return () => {
-      console.log('Cleaning up subscription and polling for lobby:', lobbyId);
-      clearInterval(pollInterval);
-      supabase.removeChannel(channel);
-    };
-  }, [lobbyId]);
-
-  const loadLobbyPlayers = async () => {
-    if (!lobbyId) return;
-
-    console.log('Loading players for lobby:', lobbyId);
-
-    const { data: players, error } = await supabase
-      .from('lobby_players')
-      .select('*')
-      .eq('lobby_id', lobbyId)
-      .order('joined_at', { ascending: true });
-
-    if (error) {
-      console.error('Error loading players:', error);
-      return;
+    if (data) {
+      setPublicLobbies(data);
     }
+  };
 
-    console.log('Loaded players from DB:', players);
-
-    const formattedPlayers: LobbyPlayer[] = players.map((player, index) => ({
-      id: player.player_id,
-      name: player.name,
-      isHost: player.is_host,
-      avatar: player.avatar,
-      color: player.color
-    }));
-
-    console.log('Formatted players:', formattedPlayers);
-    setLobbyPlayers(formattedPlayers);
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Kopiert!",
+        description: "Lobby-Code wurde in die Zwischenablage kopiert",
+      });
+    } catch (err) {
+      toast({
+        title: "Fehler",
+        description: "Code konnte nicht kopiert werden",
+        variant: "destructive",
+      });
+    }
   };
 
   const createLobby = async () => {
     if (!playerName.trim()) {
       toast({
         title: "Name erforderlich",
-        description: "Bitte gib deinen Spielernamen ein",
-        variant: "destructive"
+        description: "Bitte gib einen Spielernamen ein",
+        variant: "destructive",
       });
       return;
     }
 
     const code = generateGameCode();
-    const hostPlayerId = crypto.randomUUID();
+    const newPlayerId = `player-${Date.now()}`;
     
     try {
-      // Create lobby in database
-      const { data: lobby, error: lobbyError } = await supabase
+      // Create lobby
+      const { data: lobbyData, error: lobbyError } = await supabase
         .from('lobbies')
         .insert({
-          code: code,
-          host_id: hostPlayerId,
+          code,
           game_mode: 'classic',
-          status: 'waiting'
+          status: 'waiting',
+          is_private: false,
+          max_players_setting: 8
         })
         .select()
         .single();
 
-      if (lobbyError) {
-        console.error('Lobby creation error:', lobbyError);
-        toast({
-          title: "Fehler beim Erstellen",
-          description: `Lobby konnte nicht erstellt werden: ${lobbyError.message}`,
-          variant: "destructive"
-        });
-        return;
-      }
+      if (lobbyError) throw lobbyError;
 
-      // Add host as first player
+      // Add player to lobby
       const { error: playerError } = await supabase
         .from('lobby_players')
         .insert({
-          lobby_id: lobby.id,
-          player_id: hostPlayerId,
-          name: playerName,
-          avatar: playerName.charAt(0).toUpperCase(),
+          lobby_id: lobbyData.id,
+          player_id: newPlayerId,
+          name: playerName.trim(),
+          avatar: '👤',
           color: playerColors[0],
           is_host: true
         });
 
-      if (playerError) {
-        toast({
-          title: "Fehler beim Beitreten",
-          description: "Konnte Lobby nicht beitreten",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (playerError) throw playerError;
 
       setGameCode(code);
-      setLobbyId(lobby.id);
-      setPlayerId(hostPlayerId);
+      setLobbyId(lobbyData.id);
+      setLobbyData(lobbyData);
+      setPlayerId(newPlayerId);
       setIsHost(true);
       setLobbyCreated(true);
-      
-      toast({
-        title: "🎮 Lobby erstellt!",
-        description: `Spiel-Code: ${code}`,
-      });
+      loadLobbyPlayers(lobbyData.id);
 
-      // Force reload players after creating
-      setTimeout(() => {
-        console.log('Force loading players after create');
-        loadLobbyPlayers();
-      }, 1000);
-    } catch (error) {
-      console.error('Error creating lobby:', error);
+    } catch (error: any) {
       toast({
         title: "Fehler",
-        description: "Unerwarteter Fehler beim Erstellen der Lobby",
-        variant: "destructive"
+        description: error.message || "Lobby konnte nicht erstellt werden",
+        variant: "destructive",
       });
     }
   };
 
-  const joinLobby = async () => {
-    if (!playerName.trim() || !joinCode.trim()) {
+  const joinLobby = async (code?: string) => {
+    const codeToJoin = code || joinCode.trim().toUpperCase();
+    
+    if (!codeToJoin) {
       toast({
-        title: "Angaben unvollständig",
-        description: "Bitte gib deinen Namen und den Spiel-Code ein",
-        variant: "destructive"
+        title: "Code erforderlich",
+        description: "Bitte gib einen Lobby-Code ein",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!playerName.trim()) {
+      toast({
+        title: "Name erforderlich",
+        description: "Bitte gib einen Spielernamen ein",
+        variant: "destructive",
       });
       return;
     }
 
     try {
-      // Find lobby by code
-      const { data: lobby, error: lobbyError } = await supabase
+      // Find lobby
+      const { data: lobbyData, error: lobbyError } = await supabase
         .from('lobbies')
         .select('*')
-        .eq('code', joinCode.toUpperCase())
+        .eq('code', codeToJoin)
         .eq('status', 'waiting')
         .single();
 
-      if (lobbyError || !lobby) {
+      if (lobbyError || !lobbyData) {
         toast({
           title: "Lobby nicht gefunden",
-          description: "Spiel-Code ungültig oder Spiel bereits gestartet",
-          variant: "destructive"
+          description: "Überprüfe den Code und versuche es erneut",
+          variant: "destructive",
         });
         return;
       }
@@ -280,409 +196,398 @@ const Lobby = () => {
       const { count } = await supabase
         .from('lobby_players')
         .select('*', { count: 'exact', head: true })
-        .eq('lobby_id', lobby.id);
+        .eq('lobby_id', lobbyData.id);
 
-      if (count && count >= 8) {
+      if (count && count >= lobbyData.max_players_setting) {
         toast({
           title: "Lobby voll",
-          description: "Diese Lobby ist bereits voll",
-          variant: "destructive"
+          description: "Diese Lobby hat bereits die maximale Anzahl an Spielern",
+          variant: "destructive",
         });
         return;
       }
 
-      // Add player to lobby
-      const newPlayerId = crypto.randomUUID();
-      const availableColors = playerColors.filter((color, index) => index < 8);
-      const playerColor = availableColors[count || 0] || playerColors[0];
+      // Check if lobby is private
+      if (lobbyData.is_private) {
+        toast({
+          title: "Private Lobby",
+          description: "Diese Lobby ist privat und kann nicht betreten werden",
+          variant: "destructive",
+        });
+        return;
+      }
 
+      const newPlayerId = `player-${Date.now()}`;
+      const availableColors = playerColors.filter((color, index) => 
+        !lobbyPlayers.some(p => p.color === color)
+      );
+
+      // Add player to lobby
       const { error: playerError } = await supabase
         .from('lobby_players')
         .insert({
-          lobby_id: lobby.id,
+          lobby_id: lobbyData.id,
           player_id: newPlayerId,
-          name: playerName,
-          avatar: playerName.charAt(0).toUpperCase(),
-          color: playerColor,
+          name: playerName.trim(),
+          avatar: '👤',
+          color: availableColors[0] || playerColors[0],
           is_host: false
         });
 
-      if (playerError) {
-        toast({
-          title: "Fehler beim Beitreten",
-          description: "Konnte Lobby nicht beitreten",
-          variant: "destructive"
-        });
-        return;
-      }
+      if (playerError) throw playerError;
 
-      setGameCode(joinCode.toUpperCase());
-      setLobbyId(lobby.id);
+      setGameCode(lobbyData.code);
+      setLobbyId(lobbyData.id);
+      setLobbyData(lobbyData);
       setPlayerId(newPlayerId);
       setIsHost(false);
       setLobbyCreated(true);
+      loadLobbyPlayers(lobbyData.id);
 
-      toast({
-        title: "🎮 Lobby beigetreten!",
-        description: `Erfolgreich dem Spiel ${joinCode} beigetreten`,
-      });
-
-      // Force reload players after joining
-      setTimeout(() => {
-        console.log('Force loading players after join');
-        loadLobbyPlayers();
-      }, 1000);
-    } catch (error) {
-      console.error('Error joining lobby:', error);
+    } catch (error: any) {
       toast({
         title: "Fehler",
-        description: "Unerwarteter Fehler beim Beitreten der Lobby",
-        variant: "destructive"
+        description: error.message || "Lobby konnte nicht beigetreten werden",
+        variant: "destructive",
       });
     }
   };
 
-  const copyGameCode = () => {
-    navigator.clipboard.writeText(gameCode);
-    toast({
-      title: "📋 Code kopiert!",
-      description: "Der Spiel-Code wurde in die Zwischenablage kopiert",
-    });
+  const loadLobbyPlayers = async (currentLobbyId: string) => {
+    const { data, error } = await supabase
+      .from('lobby_players')
+      .select('*')
+      .eq('lobby_id', currentLobbyId)
+      .order('joined_at', { ascending: true });
+
+    if (data) {
+      setLobbyPlayers(data.map(p => ({
+        id: p.id,
+        name: p.name,
+        player_id: p.player_id,
+        is_host: p.is_host,
+        avatar: p.avatar,
+        color: p.color
+      })));
+    }
   };
 
   const startGame = async () => {
+    if (!lobbyId) return;
+
     if (lobbyPlayers.length < 2) {
       toast({
-        title: "Nicht genug Spieler",
-        description: "Mindestens 2 Spieler sind erforderlich",
-        variant: "destructive"
+        title: "Zu wenige Spieler",
+        description: "Mindestens 2 Spieler werden benötigt",
+        variant: "destructive",
       });
       return;
     }
 
-    if (!isHost || !lobbyId) return;
-
     try {
-      // Update lobby status to started
-      const { error } = await supabase
+      // Update lobby status
+      await supabase
         .from('lobbies')
-        .update({ status: 'started' })
+        .update({ status: 'playing' })
         .eq('id', lobbyId);
 
-      if (error) {
-        toast({
-          title: "Fehler beim Starten",
-          description: "Spiel konnte nicht gestartet werden",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Pass lobby data to game
-      const gameData = {
-        players: lobbyPlayers,
-        gameCode: gameCode,
-        lobbyId: lobbyId,
-        playerId: playerId
-      };
-      
-      localStorage.setItem('monopoly-game-data', JSON.stringify(gameData));
-      
-      toast({
-        title: "🎮 Spiel startet!",
-        description: "Alle Spieler werden ins Spiel weitergeleitet...",
-      });
-
       // Navigate to game
-      navigate("/game");
-    } catch (error) {
-      console.error('Error starting game:', error);
+      navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
+
+    } catch (error: any) {
       toast({
         title: "Fehler",
-        description: "Unerwarteter Fehler beim Starten des Spiels",
-        variant: "destructive"
+        description: "Spiel konnte nicht gestartet werden",
+        variant: "destructive",
       });
     }
   };
 
-  const addBotPlayer = async () => {
-    if (lobbyPlayers.length >= 8 || !isHost || !lobbyId) return;
+  const onSettingsUpdate = () => {
+    if (lobbyId) {
+      loadLobbyData();
+      loadLobbyPlayers(lobbyId);
+    }
+    loadPublicLobbies();
+  };
+
+  const loadLobbyData = async () => {
+    if (!lobbyId) return;
     
-    const botNames = ["AI-Tycoon", "Robo-Millionär", "Cyber-Baron", "Digital-Mogul"];
-    const availableColors = playerColors.filter(color => 
-      !lobbyPlayers.some(player => player.color === color)
-    );
+    const { data } = await supabase
+      .from('lobbies')
+      .select('*')
+      .eq('id', lobbyId)
+      .single();
     
-    const botId = crypto.randomUUID();
-    const botName = botNames[Math.floor(Math.random() * botNames.length)];
-    const botColor = availableColors[0] || playerColors[lobbyPlayers.length];
-
-    try {
-      const { error } = await supabase
-        .from('lobby_players')
-        .insert({
-          lobby_id: lobbyId,
-          player_id: botId,
-          name: botName,
-          avatar: "🤖",
-          color: botColor,
-          is_host: false
-        });
-
-      if (error) {
-        toast({
-          title: "Fehler",
-          description: "Bot konnte nicht hinzugefügt werden",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      toast({
-        title: "🤖 KI-Spieler hinzugefügt",
-        description: `${botName} ist der Lobby beigetreten`,
-      });
-    } catch (error) {
-      console.error('Error adding bot:', error);
-      toast({
-        title: "Fehler",
-        description: "Unerwarteter Fehler beim Hinzufügen des Bots",
-        variant: "destructive"
-      });
+    if (data) {
+      setLobbyData(data);
     }
   };
 
-  if (!gameMode) {
-    return (
-      <div className="min-h-screen bg-gradient-game flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl bg-white/10 backdrop-blur-xl border-white/20 shadow-game">
-          <CardHeader className="text-center space-y-4">
-            <div className="mx-auto w-20 h-20 bg-gradient-success rounded-2xl flex items-center justify-center shadow-property">
-              <Gamepad2 className="h-10 w-10 text-white" />
-            </div>
-            <CardTitle className="text-3xl font-bold text-white drop-shadow-lg">Spiel beitreten oder erstellen</CardTitle>
-            <p className="text-white/80 drop-shadow">Wähle aus, ob du ein neues Spiel erstellen oder einem bestehenden beitreten möchtest</p>
-          </CardHeader>
-          
-          <CardContent className="space-y-6">
-            <Button 
-              onClick={() => setGameMode('create')}
-              className="w-full h-16 text-lg bg-gradient-success hover:scale-105 transition-all text-white font-semibold rounded-xl shadow-property"
-            >
-              <Crown className="h-6 w-6 mr-3" />
-              Neues Mystisches Reich erschaffen
-            </Button>
-            
-            <Button 
-              onClick={() => setGameMode('join')}
-              variant="outline"
-              className="w-full h-16 text-lg border-white/30 text-white hover:bg-white/10 backdrop-blur-sm font-semibold rounded-xl"
-            >
-              <UserPlus className="h-6 w-6 mr-3" />
-              Bestehender Lobby beitreten
-            </Button>
-            
-            <Button 
-              onClick={() => navigate("/")}
-              variant="ghost"
-              className="w-full text-white/70 hover:text-white hover:bg-white/5"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Zurück zum Hauptmenü
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Set up real-time subscriptions
+  useEffect(() => {
+    if (!lobbyId) return;
 
-  if (!lobbyCreated) {
+    const channel = supabase
+      .channel(`lobby_${lobbyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'lobby_players',
+          filter: `lobby_id=eq.${lobbyId}`
+        },
+        () => {
+          loadLobbyPlayers(lobbyId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [lobbyId]);
+
+  if (lobbyCreated) {
     return (
-      <div className="min-h-screen bg-gradient-game flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-white/10 backdrop-blur-xl border-white/20 shadow-game">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-white drop-shadow-lg">
-              {gameMode === 'create' ? 'Reich erschaffen' : 'Reich beitreten'}
-            </CardTitle>
-            <p className="text-white/70 drop-shadow">
-              {gameMode === 'create' 
-                ? 'Erstelle dein eigenes mystisches Reich'
-                : 'Tritt einem bestehenden Reich bei'
-              }
-            </p>
-          </CardHeader>
-          
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-slate-300 mb-2 block">
-                Dein Name
-              </label>
-              <Input
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Spielername eingeben..."
-                className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-              />
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-primary to-primary-glow p-4">
+        <div className="container mx-auto max-w-4xl">
+          <div className="flex items-center justify-between mb-6">
+            <Link to="/">
+              <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Zurück
+              </Button>
+            </Link>
             
-            {gameMode === 'join' && (
-              <div>
-                <label className="text-sm font-medium text-slate-300 mb-2 block">
-                  Spiel-Code
-                </label>
-                <Input
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  placeholder="ABCD12"
-                  className="bg-slate-700 border-slate-600 text-white placeholder-slate-400 font-mono text-center text-lg"
-                  maxLength={6}
-                />
+            <div className="flex items-center gap-2">
+              {lobbyData?.is_private && <Lock className="h-4 w-4 text-white" />}
+              {!lobbyData?.is_private && <Globe className="h-4 w-4 text-white" />}
+              <span className="text-white text-sm">
+                {lobbyData?.is_private ? 'Private Lobby' : 'Öffentliche Lobby'}
+              </span>
+            </div>
+          </div>
+
+          <Card className="bg-white/95 shadow-2xl">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl">Lobby: {gameCode}</CardTitle>
+                  <p className="text-muted-foreground">
+                    Spieler: {lobbyPlayers.length}/{lobbyData?.max_players_setting || 8}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => copyToClipboard(gameCode)}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Code kopieren
+                  </Button>
+                  {isHost && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowSettings(true)}
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Einstellungen
+                    </Button>
+                  )}
+                </div>
               </div>
-            )}
-            
-            <Button 
-              onClick={gameMode === 'create' ? createLobby : joinLobby}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-            >
-              {gameMode === 'create' ? 'Lobby erstellen' : 'Lobby beitreten'}
-            </Button>
-            
-            <Button 
-              onClick={() => setGameMode(null)}
-              variant="ghost"
-              className="w-full text-slate-400 hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Zurück
-            </Button>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {lobbyPlayers.map((player) => (
+                  <Card key={player.id} className="relative">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full ${player.color} flex items-center justify-center text-white font-bold`}>
+                          {player.avatar}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{player.name}</div>
+                          {player.is_host && (
+                            <Badge variant="outline" className="text-xs">
+                              Host
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {isHost && (
+                <div className="flex justify-center">
+                  <Button 
+                    onClick={startGame}
+                    disabled={lobbyPlayers.length < 2}
+                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Spiel starten
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {showSettings && lobbyData && (
+          <LobbySettings
+            isOpen={showSettings}
+            onClose={() => setShowSettings(false)}
+            lobbyId={lobbyId!}
+            isHost={isHost}
+            players={lobbyPlayers}
+            isPrivate={lobbyData.is_private}
+            maxPlayers={lobbyData.max_players_setting}
+            onSettingsUpdate={onSettingsUpdate}
+          />
+        )}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-game p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <Card className="mb-6 bg-slate-800/90 backdrop-blur-xl border-slate-700">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-2xl font-bold text-white flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                    <Gamepad2 className="h-5 w-5 text-white" />
-                  </div>
-                  Spiel-Lobby
-                </CardTitle>
-                <p className="text-slate-300 mt-1">Warte auf andere Spieler oder starte das Spiel</p>
-              </div>
-              <div className="text-right">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-slate-300">Spiel-Code:</span>
-                  <Badge className="text-lg font-mono bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1">
-                    {gameCode}
-                  </Badge>
-                  <Button size="sm" variant="outline" onClick={copyGameCode}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <Users className="h-4 w-4" />
-                  {lobbyPlayers.length}/8 Spieler
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
+    <div className="min-h-screen bg-gradient-to-br from-primary to-primary-glow p-4">
+      <div className="container mx-auto max-w-2xl">
+        <div className="mb-6">
+          <Link to="/">
+            <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Zurück
+            </Button>
+          </Link>
+        </div>
 
-        {/* Players */}
-        <Card className="mb-6 bg-slate-800/90 backdrop-blur-xl border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Spieler in der Lobby
-            </CardTitle>
+        <Card className="bg-white/95 shadow-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl mb-2">FastEstate Lobby</CardTitle>
+            <p className="text-muted-foreground">Erstelle eine Lobby oder tritt einer bei</p>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {lobbyPlayers.map((player) => (
-                <Card key={player.id} className="bg-slate-700/50 border-slate-600">
-                  <CardContent className="p-4 text-center">
-                    <Avatar className={`mx-auto mb-3 w-12 h-12 ${player.color} border-2 border-white`}>
-                      <AvatarFallback className="text-white font-bold">
-                        {player.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="text-white font-medium flex items-center justify-center gap-2">
-                      {player.name}
-                      {player.isHost && <Crown className="h-4 w-4 text-yellow-400" />}
-                    </div>
-                    <Badge variant="outline" className="mt-2 text-xs border-slate-500 text-slate-300">
-                      {player.isHost ? 'Gastgeber' : 'Spieler'}
-                    </Badge>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {/* Add Bot Button */}
-              {isHost && lobbyPlayers.length < 8 && (
-                <Card className="bg-slate-700/30 border-slate-600 border-dashed">
-                  <CardContent className="p-4 text-center">
-                    <Button 
-                      onClick={addBotPlayer}
-                      variant="ghost"
-                      className="w-full h-full text-slate-400 hover:text-white hover:bg-slate-600/50"
-                    >
-                      <div className="text-center">
-                        <UserPlus className="h-8 w-8 mx-auto mb-2" />
-                        <div className="text-sm">KI-Spieler hinzufügen</div>
+          <CardContent className="space-y-6">
+            {!gameMode && (
+              <div className="grid grid-cols-1 gap-4">
+                <Button 
+                  onClick={() => setGameMode('create')}
+                  className="h-16 text-lg"
+                >
+                  <Plus className="mr-2 h-6 w-6" />
+                  Neue Lobby erstellen
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  onClick={() => setGameMode('join')}
+                  className="h-16 text-lg"
+                >
+                  <Users className="mr-2 h-6 w-6" />
+                  Lobby beitreten
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowPublicLobbies(!showPublicLobbies)}
+                  className="h-16 text-lg"
+                >
+                  <Globe className="mr-2 h-6 w-6" />
+                  Öffentliche Lobbys ({publicLobbies.length})
+                </Button>
+
+                {showPublicLobbies && publicLobbies.length > 0 && (
+                  <div className="space-y-2 p-4 bg-gray-50 rounded-lg">
+                    <h3 className="font-semibold">Verfügbare öffentliche Lobbys:</h3>
+                    {publicLobbies.map((lobby) => (
+                      <div key={lobby.id} className="flex items-center justify-between p-3 bg-white rounded border">
+                        <div>
+                          <div className="font-medium">Code: {lobby.code}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Spieler: {lobby.lobby_players?.length || 0}/{lobby.max_players_setting}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (playerName.trim()) {
+                              joinLobby(lobby.code);
+                            } else {
+                              toast({
+                                title: "Name erforderlich",
+                                description: "Bitte gib zuerst einen Spielernamen ein",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          Beitreten
+                        </Button>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {gameMode && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Spielername
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Gib deinen Namen ein..."
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    maxLength={20}
+                  />
+                </div>
+
+                {gameMode === 'create' && (
+                  <Button onClick={createLobby} className="w-full h-12">
+                    Lobby erstellen
+                  </Button>
+                )}
+
+                {gameMode === 'join' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Lobby-Code
+                      </label>
+                      <Input
+                        type="text"
+                        placeholder="6-stelliger Code..."
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                        maxLength={6}
+                      />
+                    </div>
+                    <Button onClick={() => joinLobby()} className="w-full h-12">
+                      Lobby beitreten
                     </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                  </>
+                )}
+
+                <Button 
+                  variant="outline" 
+                  onClick={() => setGameMode(null)}
+                  className="w-full"
+                >
+                  Zurück
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {/* Controls */}
-        <div className="flex gap-4 justify-center">
-          {isHost ? (
-            <>
-              <Button 
-                onClick={startGame}
-                size="lg"
-                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-8"
-                disabled={lobbyPlayers.length < 2}
-              >
-                <Play className="h-5 w-5 mr-2" />
-                Spiel starten
-              </Button>
-              <Button variant="outline" size="lg" className="border-slate-600 text-slate-300 hover:bg-slate-700">
-                <Settings className="h-5 w-5 mr-2" />
-                Einstellungen
-              </Button>
-            </>
-          ) : (
-            <div className="text-center text-slate-300">
-              <div className="animate-pulse">Warte auf den Gastgeber...</div>
-            </div>
-          )}
-          
-          <Button 
-            onClick={() => navigate("/")}
-            variant="outline"
-            size="lg"
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Lobby verlassen
-          </Button>
-        </div>
       </div>
     </div>
   );
-};
-
-export default Lobby;
+}
