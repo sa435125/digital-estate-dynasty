@@ -103,7 +103,11 @@ const Index = () => {
               <Button 
                 size="lg" 
                 className="text-lg px-8 py-6 gap-2"
-                onClick={() => navigate("/lobby")}
+                onClick={() => {
+                  // Clear any existing game data
+                  localStorage.removeItem('monopoly-game-data');
+                  navigate("/lobby");
+                }}
               >
                 <Play className="h-5 w-5" />
                 Spiel starten
