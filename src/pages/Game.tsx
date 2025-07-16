@@ -396,10 +396,10 @@ const Game = () => {
       return;
     }
 
-    if (propertyData.owner && propertyData.owner !== parseInt(player.id)) {
+    if (propertyData.owner && propertyData.owner !== player.id && propertyData.owner !== parseInt(player.id)) {
       // Pay rent
       const rent = calculateRent(propertyData);
-      const owner = players.find(p => parseInt(p.id) === propertyData.owner);
+      const owner = players.find(p => p.id === propertyData.owner || parseInt(p.id) === propertyData.owner);
       
       if (rent > 0 && owner) {
         const actualPayment = Math.min(player.money, rent);
@@ -522,7 +522,7 @@ const Game = () => {
     
     // Regular property - check for monopoly and houses
     const houses = property.houses || 0;
-    const owner = players.find(p => parseInt(p.id) === property.owner);
+    const owner = players.find(p => p.id === property.owner || parseInt(p.id) === property.owner);
     
     // Check if owner has monopoly for this color
     const colorGroup = properties.filter(p => p.color === property.color && p.type === 'property');
@@ -570,7 +570,7 @@ const Game = () => {
         if (propertyIndex !== -1) {
           newProperties[propertyIndex] = {
             ...newProperties[propertyIndex],
-            owner: parseInt(player.id)
+            owner: player.id
           };
         }
         console.log('Updated properties state:', newProperties);
@@ -631,7 +631,7 @@ const Game = () => {
     if (!player) return;
 
     // Free all properties
-    const playerProperties = properties.filter(p => p.owner === parseInt(player.id));
+    const playerProperties = properties.filter(p => p.owner === player.id || p.owner === parseInt(player.id));
     setProperties(prev => {
       const newProperties = [...prev];
       playerProperties.forEach(prop => {
@@ -767,7 +767,7 @@ const Game = () => {
               <span className="hidden sm:inline">Lobby verlassen</span>
               <span className="sm:hidden">Exit</span>
             </Button>
-            <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-white">Mystisches Reich</h1>
+            <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-white">FastEstate</h1>
             {gameCode && (
               <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs sm:text-sm">
                 {gameCode}

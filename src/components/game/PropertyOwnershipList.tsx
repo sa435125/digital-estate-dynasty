@@ -21,7 +21,11 @@ export function PropertyOwnershipList({ players, properties }: PropertyOwnership
   console.log('PropertyOwnershipList - properties:', properties);
   
   const getOwnedProperties = (playerId: string) => {
-    const owned = properties.filter(p => p.owner === parseInt(playerId));
+    const playerIdAsNumber = parseInt(playerId);
+    const owned = properties.filter(p => 
+      (typeof p.owner === 'number' && p.owner === playerIdAsNumber) ||
+      (typeof p.owner === 'string' && p.owner === playerId)
+    );
     console.log(`Player ${playerId} owns:`, owned);
     return owned;
   };
@@ -71,7 +75,7 @@ export function PropertyOwnershipList({ players, properties }: PropertyOwnership
                 </div>
                 <span className="font-bold text-white text-lg">{player.name}</span>
                 <Badge variant="secondary" className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                  {ownedProperties.length} Immobilien
+                  {ownedProperties.length} {ownedProperties.length === 1 ? 'Immobilie' : 'Immobilien'}
                 </Badge>
               </div>
               

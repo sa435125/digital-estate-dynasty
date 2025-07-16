@@ -28,6 +28,7 @@ export type Database = {
           position: number
           properties: string[]
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           color: string
@@ -42,6 +43,7 @@ export type Database = {
           position?: number
           properties?: string[]
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           color?: string
@@ -56,6 +58,7 @@ export type Database = {
           position?: number
           properties?: string[]
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -178,6 +181,137 @@ export type Database = {
             columns: ["lobby_id"]
             isOneToOne: false
             referencedRelation: "lobbies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          language: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          language?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          language?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      property_ownership: {
+        Row: {
+          created_at: string
+          houses: number | null
+          id: string
+          is_mortgaged: boolean | null
+          lobby_id: string
+          owner_player_id: string | null
+          property_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          houses?: number | null
+          id?: string
+          is_mortgaged?: boolean | null
+          lobby_id: string
+          owner_player_id?: string | null
+          property_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          houses?: number | null
+          id?: string
+          is_mortgaged?: boolean | null
+          lobby_id?: string
+          owner_player_id?: string | null
+          property_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shop_items: {
+        Row: {
+          available: boolean | null
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+        }
+        Insert: {
+          available?: boolean | null
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+        }
+        Update: {
+          available?: boolean | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
+      user_purchases: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          quantity: number | null
+          total_price: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          quantity?: number | null
+          total_price: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          quantity?: number | null
+          total_price?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_purchases_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "shop_items"
             referencedColumns: ["id"]
           },
         ]
