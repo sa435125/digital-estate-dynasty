@@ -24,12 +24,12 @@ interface PlayerPanelProps {
 export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelProps) {
   return (
     <Card className={cn(
-      "transition-all duration-300",
-      isCurrentPlayer && "ring-2 ring-primary ring-offset-2 shadow-lg",
-      isCurrentPlayer && gamePhase === 'moving' && "animate-pulse-slow"
+      "transition-all duration-300 bg-slate-800/90 backdrop-blur-xl border-slate-700",
+      isCurrentPlayer && "ring-2 ring-yellow-400 ring-offset-2 shadow-xl",
+      isCurrentPlayer && gamePhase === 'moving' && "animate-pulse"
     )}>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-3">
+        <CardTitle className="flex items-center gap-3 text-white">
           <Avatar className={cn("border-2", `border-${player.color}`)}>
             <AvatarFallback className={cn("font-bold text-white", `bg-${player.color}`)}>
               {player.name.charAt(0)}
@@ -56,42 +56,42 @@ export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelP
       
       <CardContent className="space-y-3">
         {/* Money */}
-        <div className="flex items-center gap-2 p-3 bg-gradient-money rounded-lg text-white">
+        <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg text-white shadow-lg">
           <Coins className="h-5 w-5" />
           <span className="text-lg font-bold">
-            {player.money.toLocaleString('de-DE')} €
+            {player.money.toLocaleString('de-DE')} Gold
           </span>
         </div>
 
         {/* Properties Count */}
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-1">
-            <Home className="h-4 w-4 text-muted-foreground" />
-            <span>Besitztümer:</span>
+            <Home className="h-4 w-4 text-slate-400" />
+            <span className="text-slate-300">Besitztümer:</span>
           </div>
-          <Badge variant="outline">
+          <Badge variant="outline" className="border-slate-600 text-slate-300">
             {player.properties.length}
           </Badge>
         </div>
 
         {/* Position */}
         <div className="flex items-center justify-between text-sm">
-          <span>Position:</span>
-          <Badge variant="secondary">
+          <span className="text-slate-300">Position:</span>
+          <Badge className="bg-slate-700 text-slate-300">
             Feld {player.position}
           </Badge>
         </div>
 
         {/* Player Status */}
-        <div className="pt-2 border-t">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="pt-2 border-t border-slate-600">
+          <div className="flex items-center justify-between text-xs text-slate-400">
             <span>Status:</span>
             <span className={cn(
               "font-medium",
-              isCurrentPlayer ? "text-primary" : "text-muted-foreground",
-              player.inJail && "text-destructive"
+              isCurrentPlayer ? "text-yellow-400" : "text-slate-400",
+              player.inJail && "text-red-400"
             )}>
-              {player.inJail ? `Gefängnis (${player.jailTurns}/3)` : 
+              {player.inJail ? `Verlies (${player.jailTurns}/3)` : 
                isCurrentPlayer ? "Am Zug" : "Wartet"}
             </span>
           </div>

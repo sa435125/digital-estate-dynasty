@@ -103,7 +103,7 @@ const Index = () => {
               <Button 
                 size="lg" 
                 className="text-lg px-8 py-6 gap-2"
-                onClick={() => navigate("/game")}
+                onClick={() => navigate("/lobby")}
               >
                 <Play className="h-5 w-5" />
                 Spiel starten
@@ -172,7 +172,7 @@ const Index = () => {
             <Button 
               size="lg" 
               className="text-lg px-8 py-4 gap-2"
-              onClick={() => navigate("/game")}
+              onClick={() => navigate("/lobby")}
             >
               <Play className="h-5 w-5" />
               {gameModes.find(m => m.id === selectedMode)?.title} starten
@@ -224,7 +224,7 @@ const Index = () => {
         <Button 
           size="lg" 
           className="text-xl px-12 py-6 gap-3"
-          onClick={() => navigate("/game")}
+          onClick={() => navigate("/lobby")}
         >
           <Play className="h-6 w-6" />
           Jetzt spielen
