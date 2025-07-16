@@ -26,6 +26,7 @@ interface GameBoardProps {
   players: Player[];
   currentPlayer: number;
   onPropertyClick: (property: Property) => void;
+  properties: Property[];
 }
 
 // Simplified board properties for demo
@@ -75,7 +76,7 @@ const BOARD_PROPERTIES: Property[] = [
   { id: "purple2", name: "Schlossallee", price: 400, rent: 50, color: "monopoly-purple", type: "property" },
 ];
 
-export function GameBoard({ players, currentPlayer, onPropertyClick }: GameBoardProps) {
+export function GameBoard({ players, currentPlayer, onPropertyClick, properties }: GameBoardProps) {
   const getPropertyIcon = (property: Property) => {
     switch (property.type) {
       case 'railroad':
@@ -105,6 +106,7 @@ export function GameBoard({ players, currentPlayer, onPropertyClick }: GameBoard
   const renderProperty = (property: Property, index: number) => {
     const playersHere = getPlayersAtPosition(index);
     const isCorner = index === 0 || index === 10 || index === 20 || index === 30;
+    const actualProperty = properties[index]; // Use the actual property data from props
     
     return (
       <div
@@ -114,7 +116,7 @@ export function GameBoard({ players, currentPlayer, onPropertyClick }: GameBoard
           isCorner ? "w-20 h-20" : "w-16 h-20",
           "flex flex-col justify-between p-1"
         )}
-        onClick={() => property.type === 'property' && onPropertyClick(property)}
+        onClick={() => property.type === 'property' && onPropertyClick(actualProperty)}
       >
         {/* Property color bar */}
         {property.type === 'property' && (
@@ -151,12 +153,12 @@ export function GameBoard({ players, currentPlayer, onPropertyClick }: GameBoard
         )}
 
         {/* Owner indicator */}
-        {property.owner && (
+        {actualProperty.owner && (
           <Badge 
             variant="secondary" 
             className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-xs h-4 px-1"
           >
-            {players.find(p => p.id === property.owner)?.name.charAt(0)}
+            {players.find(p => p.id === actualProperty.owner)?.name.charAt(0)}
           </Badge>
         )}
       </div>

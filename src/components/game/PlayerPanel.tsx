@@ -11,12 +11,14 @@ interface Player {
   position: number;
   color: string;
   properties: string[];
+  inJail: boolean;
+  jailTurns: number;
 }
 
 interface PlayerPanelProps {
   player: Player;
   isCurrentPlayer: boolean;
-  gamePhase: 'waiting' | 'rolling' | 'moving' | 'property';
+  gamePhase: 'waiting' | 'rolling' | 'moving' | 'property' | 'rent' | 'finished';
 }
 
 export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelProps) {
@@ -44,6 +46,8 @@ export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelP
                 {gamePhase === 'rolling' && 'Würfelt...'}
                 {gamePhase === 'moving' && 'Bewegt sich...'}
                 {gamePhase === 'property' && 'Entscheidet...'}
+                {gamePhase === 'rent' && 'Zahlt Miete...'}
+                {player.inJail && 'Im Gefängnis'}
               </Badge>
             )}
           </div>
@@ -84,9 +88,11 @@ export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelP
             <span>Status:</span>
             <span className={cn(
               "font-medium",
-              isCurrentPlayer ? "text-primary" : "text-muted-foreground"
+              isCurrentPlayer ? "text-primary" : "text-muted-foreground",
+              player.inJail && "text-destructive"
             )}>
-              {isCurrentPlayer ? "Am Zug" : "Wartet"}
+              {player.inJail ? `Gefängnis (${player.jailTurns}/3)` : 
+               isCurrentPlayer ? "Am Zug" : "Wartet"}
             </span>
           </div>
         </div>
