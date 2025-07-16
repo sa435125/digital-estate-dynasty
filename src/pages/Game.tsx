@@ -307,7 +307,7 @@ const Game = () => {
     const player = players.find(p => p.id === currentPlayerId);
     if (!player) return;
 
-    // Update game state
+    // Update game state with dice roll
     await updateGameState({
       ...gameState,
       gamePhase: 'moving',
@@ -317,17 +317,24 @@ const Game = () => {
     if (player.inJail) {
       if (dice1 === dice2) {
         // Double - get out of jail
+        const newPosition = (player.position + diceSum) % 40;
         await updatePlayer(player.id, {
           ...player,
           inJail: false,
           jailTurns: 0,
-          position: (player.position + diceSum) % 40
+          position: newPosition
         });
         
         toast({
           title: "🔓 Pasch! Befreit!",
           description: `${player.name} entkommt dem Drachenverlies`,
         });
+
+        // Handle property landing
+        setTimeout(() => {
+          const landedProperty = properties[newPosition];
+          handlePropertyLanding(player, landedProperty, newPosition);
+        }, 1500);
       } else {
         await updatePlayer(player.id, {
           ...player,
@@ -350,7 +357,7 @@ const Game = () => {
       let newMoney = player.money;
       
       // Check if player passed "Nexus Plaza" (Start)
-      if (newPosition < oldPosition) {
+      if (newPosition < oldPosition || (oldPosition + diceSum >= 40)) {
         newMoney += 200;
         toast({
           title: "🌟 Durch Nexus Plaza!",
@@ -363,21 +370,22 @@ const Game = () => {
         position: newPosition,
         money: newMoney
       });
-    }
 
-    // Handle property landing after movement
-    setTimeout(() => {
-      const newPosition = (player.position + diceSum) % 40;
-      const landedProperty = properties[newPosition];
-      handlePropertyLanding(player, landedProperty);
-    }, 1500);
+      // Handle property landing after movement
+      setTimeout(() => {
+        const landedProperty = properties[newPosition];
+        handlePropertyLanding(player, landedProperty, newPosition);
+      }, 1500);
+    }
   };
 
-  const handlePropertyLanding = async (player: Player, property: Property) => {
+  const handlePropertyLanding = async (player: Player, property: Property, position: number) => {
     const propertyData = properties.find(p => p.id === property.id);
     
+    console.log(`Player ${player.name} landed on position ${position}, property:`, propertyData);
+    
     if (!propertyData || propertyData.type === 'special') {
-      handleSpecialField(player, propertyData);
+      handleSpecialField(player, propertyData, position);
       return;
     }
 
@@ -414,7 +422,9 @@ const Game = () => {
     }
   };
 
-  const handleSpecialField = async (player: Player, property: Property | undefined) => {
+  const handleSpecialField = async (player: Player, property: Property | undefined, position: number) => {
+    console.log(`Player ${player.name} landed on special field at position ${position}:`, property);
+    
     if (!property) {
       nextTurn();
       return;
@@ -426,7 +436,7 @@ const Game = () => {
 
     switch (property.id) {
       case 'tax1':
-        newMoney -= 200;
+        newMoney = Math.max(0, newMoney - 200);
         toast({
           title: "⚡ Gildensteuer",
           description: `${player.name} zahlt 200€ an die Händlergilde`,
@@ -434,7 +444,7 @@ const Game = () => {
         break;
         
       case 'tax2':
-        newMoney -= 100;
+        newMoney = Math.max(0, newMoney - 100);
         toast({
           title: "🐉 Drachensteuer",
           description: `${player.name} zahlt 100€ Tribut an den Drachen`,
@@ -454,7 +464,7 @@ const Game = () => {
         if (property.id.includes('fortune') || property.id.includes('destiny')) {
           const bonuses = [0, 50, 100, 200, -50, -100];
           const bonus = bonuses[Math.floor(Math.random() * bonuses.length)];
-          newMoney += bonus;
+          newMoney = Math.max(0, newMoney + bonus);
           toast({
             title: bonus >= 0 ? "🍀 Glück gehabt!" : "💸 Pech gehabt!",
             description: `${player.name} ${bonus >= 0 ? 'erhält' : 'verliert'} ${Math.abs(bonus)}€`,
@@ -470,7 +480,7 @@ const Game = () => {
       jailTurns: newInJail ? 0 : player.jailTurns
     });
     
-    nextTurn();
+    setTimeout(() => nextTurn(), 2000);
   };
 
   const calculateRent = (property: Property): number => {
@@ -540,11 +550,18 @@ const Game = () => {
     
     const newRound = nextIndex === 0 ? gameState.round + 1 : gameState.round;
     
+    console.log(`Next turn: from player ${gameState.currentPlayerId} to player ${players[nextIndex]?.id}`);
+    
     await updateGameState({
       ...gameState,
       currentPlayerId: players[nextIndex].id,
       gamePhase: 'waiting',
       round: newRound
+    });
+    
+    toast({
+      title: "🎲 Nächster Spieler",
+      description: `${players[nextIndex].name} ist dran`,
     });
   };
 
