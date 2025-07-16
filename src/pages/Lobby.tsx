@@ -272,36 +272,41 @@ export default function Lobby() {
     }
   };
 
-  const startGame = async () => {
-    if (!lobbyId) return;
+const startGame = async () => {
+  if (!lobbyId) return;
+  if (lobbyPlayers.length < 2) {
+    toast({
+      title: "Zu wenige Spieler",
+      description: "Mindestens 2 Spieler werden benötigt",
+      variant: "destructive",
+    });
+    return;
+  }
+  try {
+    await supabase
+      .from('lobbies')
+      .update({ status: 'playing' })
+      .eq('id', lobbyId);
 
-    if (lobbyPlayers.length < 2) {
-      toast({
-        title: "Zu wenige Spieler",
-        description: "Mindestens 2 Spieler werden benötigt",
-        variant: "destructive",
-      });
-      return;
-    }
+    // HIER DIE GAME DATA SPEICHERN!
+    const initialGameData = {
+      lobbyId,
+      playerId,
+      gameCode,
+      // ggf. weitere Felder
+    };
+    localStorage.setItem('monopoly-game-data', JSON.stringify(initialGameData));
 
-    try {
-      // Update lobby status
-      await supabase
-        .from('lobbies')
-        .update({ status: 'playing' })
-        .eq('id', lobbyId);
-
-      // Navigate to game
-      navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
-
-    } catch (error: any) {
-      toast({
-        title: "Fehler",
-        description: "Spiel konnte nicht gestartet werden",
-        variant: "destructive",
-      });
-    }
-  };
+    // Jetzt erst navigieren!
+    navigate(/game?lobby=${lobbyId}&player=${playerId});
+  } catch (error: any) {
+    toast({
+      title: "Fehler",
+      description: "Spiel konnte nicht gestartet werden",
+      variant: "destructive",
+    });
+  }
+};
 
   const onSettingsUpdate = () => {
     if (lobbyId) {
