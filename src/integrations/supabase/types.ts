@@ -14,6 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      game_players: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          in_jail: boolean
+          jail_turns: number
+          lobby_id: string
+          money: number
+          name: string
+          player_id: string
+          position: number
+          properties: string[]
+          updated_at: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          id?: string
+          in_jail?: boolean
+          jail_turns?: number
+          lobby_id: string
+          money?: number
+          name: string
+          player_id: string
+          position?: number
+          properties?: string[]
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          in_jail?: boolean
+          jail_turns?: number
+          lobby_id?: string
+          money?: number
+          name?: string
+          player_id?: string
+          position?: number
+          properties?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_players_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "lobbies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_state: {
+        Row: {
+          created_at: string
+          current_player_id: string
+          game_phase: string
+          id: string
+          last_dice_roll: Json | null
+          lobby_id: string
+          round_number: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_player_id: string
+          game_phase?: string
+          id?: string
+          last_dice_roll?: Json | null
+          lobby_id: string
+          round_number?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_player_id?: string
+          game_phase?: string
+          id?: string
+          last_dice_roll?: Json | null
+          lobby_id?: string
+          round_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_state_lobby_id_fkey"
+            columns: ["lobby_id"]
+            isOneToOne: false
+            referencedRelation: "lobbies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lobbies: {
         Row: {
           code: string

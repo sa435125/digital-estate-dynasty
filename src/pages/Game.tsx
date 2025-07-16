@@ -9,11 +9,12 @@ import { PropertyCard } from "@/components/game/PropertyCard";
 import { MoneyTransfer } from "@/components/game/MoneyTransfer";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, Home, Send, Crown } from "lucide-react";
+import { Home, Send, Crown } from "lucide-react";
 import { BOARD_PROPERTIES, Property } from "@/data/properties";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Player {
-  id: number;
+  id: string;
   name: string;
   money: number;
   position: number;
@@ -23,135 +24,363 @@ interface Player {
   jailTurns: number;
 }
 
+interface GameState {
+  currentPlayerId: string;
+  gamePhase: 'waiting' | 'rolling' | 'moving' | 'property' | 'rent' | 'finished';
+  round: number;
+  lastDiceRoll: {dice1: number, dice2: number} | null;
+}
 
 const Game = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [currentPlayer, setCurrentPlayer] = useState(0);
-  const [gamePhase, setGamePhase] = useState<'waiting' | 'rolling' | 'moving' | 'property' | 'rent' | 'finished'>('waiting');
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [gameState, setGameState] = useState<GameState>({
+    currentPlayerId: '',
+    gamePhase: 'waiting',
+    round: 1,
+    lastDiceRoll: null
+  });
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
-  const [round, setRound] = useState(1);
-  const [lastDiceRoll, setLastDiceRoll] = useState<{dice1: number, dice2: number} | null>(null);
   const [showMoneyTransfer, setShowMoneyTransfer] = useState(false);
   const [gameCode, setGameCode] = useState("");
-
-  // Initialize players from lobby data or use defaults
-  const [players, setPlayers] = useState<Player[]>(() => {
-    const gameData = localStorage.getItem('monopoly-game-data');
-    if (gameData) {
-      const parsed = JSON.parse(gameData);
-      setGameCode(parsed.gameCode || "");
-      return parsed.players.map((player: any, index: number) => ({
-        id: index + 1,
-        name: player.name,
-        money: 1500,
-        position: 0,
-        color: player.color,
-        properties: [],
-        inJail: false,
-        jailTurns: 0
-      }));
-    }
-    
-    return [
-      { id: 1, name: "Spieler 1", money: 1500, position: 0, color: "bg-red-500", properties: [], inJail: false, jailTurns: 0 },
-      { id: 2, name: "Spieler 2", money: 1500, position: 0, color: "bg-blue-500", properties: [], inJail: false, jailTurns: 0 }
-    ];
-  });
-
+  const [lobbyId, setLobbyId] = useState<string>("");
+  const [currentPlayerId, setCurrentPlayerId] = useState<string>("");
   const [properties, setProperties] = useState<Property[]>(BOARD_PROPERTIES);
 
-  // Check for game over
+  // Initialize game from lobby data
   useEffect(() => {
-    const activePlayers = players.filter(p => p.money > 0);
-    if (activePlayers.length === 1 && gamePhase !== 'finished') {
-      setGamePhase('finished');
-      toast({
-        title: "👑 Spiel beendet!",
-        description: `${activePlayers[0].name} regiert nun das Reich!`,
-      });
+    const gameData = localStorage.getItem('monopoly-game-data');
+    if (!gameData) {
+      navigate("/lobby");
+      return;
     }
-  }, [players, gamePhase, toast]);
 
-  const movePlayer = (playerIndex: number, diceSum: number) => {
-    setPlayers(prev => {
-      const newPlayers = [...prev];
-      const player = newPlayers[playerIndex];
-      
+    const parsed = JSON.parse(gameData);
+    setGameCode(parsed.gameCode || "");
+    setLobbyId(parsed.lobbyId);
+    setCurrentPlayerId(parsed.playerId);
+
+    // Initialize game in database if not exists
+    initializeGame(parsed);
+  }, []);
+
+  // Real-time subscriptions
+  useEffect(() => {
+    if (!lobbyId) return;
+
+    const gameStateChannel = supabase
+      .channel(`game-state-${lobbyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_state',
+          filter: `lobby_id=eq.${lobbyId}`
+        },
+        (payload) => {
+          console.log('Game state updated:', payload);
+          loadGameState();
+        }
+      )
+      .subscribe();
+
+    const playersChannel = supabase
+      .channel(`game-players-${lobbyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_players',
+          filter: `lobby_id=eq.${lobbyId}`
+        },
+        (payload) => {
+          console.log('Player data updated:', payload);
+          loadPlayers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(gameStateChannel);
+      supabase.removeChannel(playersChannel);
+    };
+  }, [lobbyId]);
+
+  const initializeGame = async (parsed: any) => {
+    try {
+      // Check if game already exists
+      const { data: existingGame } = await supabase
+        .from('game_state')
+        .select('*')
+        .eq('lobby_id', parsed.lobbyId)
+        .single();
+
+      if (!existingGame) {
+        // Create initial game state
+        const { error: gameError } = await supabase
+          .from('game_state')
+          .insert({
+            lobby_id: parsed.lobbyId,
+            current_player_id: parsed.players[0].id,
+            game_phase: 'waiting',
+            round_number: 1
+          });
+
+        if (gameError) {
+          console.error('Error creating game state:', gameError);
+          return;
+        }
+
+        // Create initial player states
+        const gamePlayersData = parsed.players.map((player: any) => ({
+          lobby_id: parsed.lobbyId,
+          player_id: player.id,
+          name: player.name,
+          money: 1500,
+          position: 0,
+          color: player.color,
+          properties: [],
+          in_jail: false,
+          jail_turns: 0
+        }));
+
+        const { error: playersError } = await supabase
+          .from('game_players')
+          .insert(gamePlayersData);
+
+        if (playersError) {
+          console.error('Error creating players:', playersError);
+          return;
+        }
+      }
+
+      // Load current game state
+      loadGameState();
+      loadPlayers();
+
+    } catch (error) {
+      console.error('Error initializing game:', error);
+    }
+  };
+
+  const loadGameState = async () => {
+    const { data, error } = await supabase
+      .from('game_state')
+      .select('*')
+      .eq('lobby_id', lobbyId)
+      .single();
+
+    if (error) {
+      console.error('Error loading game state:', error);
+      return;
+    }
+
+    setGameState({
+      currentPlayerId: data.current_player_id,
+      gamePhase: data.game_phase as 'waiting' | 'rolling' | 'moving' | 'property' | 'rent' | 'finished',
+      round: data.round_number,
+      lastDiceRoll: data.last_dice_roll as {dice1: number, dice2: number} | null
+    });
+  };
+
+  const loadPlayers = async () => {
+    const { data, error } = await supabase
+      .from('game_players')
+      .select('*')
+      .eq('lobby_id', lobbyId)
+      .order('created_at');
+
+    if (error) {
+      console.error('Error loading players:', error);
+      return;
+    }
+
+    const formattedPlayers: Player[] = data.map(player => ({
+      id: player.player_id,
+      name: player.name,
+      money: player.money,
+      position: player.position,
+      color: player.color,
+      properties: player.properties || [],
+      inJail: player.in_jail,
+      jailTurns: player.jail_turns
+    }));
+
+    setPlayers(formattedPlayers);
+  };
+
+  const updateGameState = async (updates: Partial<GameState>) => {
+    const { error } = await supabase
+      .from('game_state')
+      .update({
+        current_player_id: updates.currentPlayerId,
+        game_phase: updates.gamePhase,
+        round_number: updates.round,
+        last_dice_roll: updates.lastDiceRoll
+      })
+      .eq('lobby_id', lobbyId);
+
+    if (error) {
+      console.error('Error updating game state:', error);
+    }
+  };
+
+  const updatePlayer = async (playerId: string, updates: Partial<Player>) => {
+    const { error } = await supabase
+      .from('game_players')
+      .update({
+        money: updates.money,
+        position: updates.position,
+        properties: updates.properties,
+        in_jail: updates.inJail,
+        jail_turns: updates.jailTurns
+      })
+      .eq('lobby_id', lobbyId)
+      .eq('player_id', playerId);
+
+    if (error) {
+      console.error('Error updating player:', error);
+    }
+  };
+
+  const handleDiceRoll = async (dice1: number, dice2: number) => {
+    // Only current player can roll
+    if (gameState.currentPlayerId !== currentPlayerId) {
+      toast({
+        title: "Nicht dein Zug!",
+        description: "Warte bis du dran bist",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const diceSum = dice1 + dice2;
+    const player = players.find(p => p.id === currentPlayerId);
+    if (!player) return;
+
+    // Update game state
+    await updateGameState({
+      ...gameState,
+      gamePhase: 'moving',
+      lastDiceRoll: { dice1, dice2 }
+    });
+
+    if (player.inJail) {
+      if (dice1 === dice2) {
+        // Double - get out of jail
+        await updatePlayer(player.id, {
+          ...player,
+          inJail: false,
+          jailTurns: 0,
+          position: (player.position + diceSum) % 40
+        });
+        
+        toast({
+          title: "🔓 Pasch! Befreit!",
+          description: `${player.name} entkommt dem Drachenverlies`,
+        });
+      } else {
+        await updatePlayer(player.id, {
+          ...player,
+          jailTurns: player.jailTurns + 1
+        });
+        
+        toast({
+          title: "🔒 Noch gefangen",
+          description: `${player.name} muss noch ${3 - (player.jailTurns + 1)} Runden im Verlies bleiben`,
+        });
+        
+        // Next turn
+        setTimeout(() => nextTurn(), 2000);
+        return;
+      }
+    } else {
+      // Move player
       const oldPosition = player.position;
       let newPosition = (oldPosition + diceSum) % 40;
+      let newMoney = player.money;
       
       // Check if player passed "Nexus Plaza" (Start)
       if (newPosition < oldPosition) {
-        player.money += 200;
+        newMoney += 200;
         toast({
           title: "🌟 Durch Nexus Plaza!",
           description: `${player.name} erhält 200€ für die Reise`,
         });
       }
       
-      player.position = newPosition;
-      return newPlayers;
-    });
+      await updatePlayer(player.id, {
+        ...player,
+        position: newPosition,
+        money: newMoney
+      });
+    }
+
+    // Handle property landing after movement
+    setTimeout(() => {
+      const newPosition = (player.position + diceSum) % 40;
+      const landedProperty = properties[newPosition];
+      handlePropertyLanding(player, landedProperty);
+    }, 1500);
   };
 
-  const handlePropertyLanding = (playerIndex: number, property: Property) => {
-    const player = players[playerIndex];
+  const handlePropertyLanding = async (player: Player, property: Property) => {
     const propertyData = properties.find(p => p.id === property.id);
     
     if (!propertyData || propertyData.type === 'special') {
-      handleSpecialField(playerIndex, propertyData);
+      handleSpecialField(player, propertyData);
       return;
     }
 
-    if (propertyData.owner && propertyData.owner !== player.id) {
+    if (propertyData.owner && propertyData.owner !== parseInt(player.id)) {
       // Pay rent
       const rent = calculateRent(propertyData);
-      const owner = players.find(p => p.id === propertyData.owner);
+      const owner = players.find(p => parseInt(p.id) === propertyData.owner);
       
       if (rent > 0 && owner) {
-        setPlayers(prev => {
-          const newPlayers = [...prev];
-          const payerIndex = newPlayers.findIndex(p => p.id === player.id);
-          const ownerIndex = newPlayers.findIndex(p => p.id === owner.id);
-          
-          const actualPayment = Math.min(newPlayers[payerIndex].money, rent);
-          newPlayers[payerIndex].money -= actualPayment;
-          newPlayers[ownerIndex].money += actualPayment;
-          
-          return newPlayers;
+        const actualPayment = Math.min(player.money, rent);
+        
+        await updatePlayer(player.id, {
+          ...player,
+          money: player.money - actualPayment
+        });
+        
+        await updatePlayer(owner.id, {
+          ...owner,
+          money: owner.money + actualPayment
         });
         
         toast({
           title: "🏠 Tribut gezahlt",
-          description: `${player.name} zahlt ${rent}€ an ${owner.name}`,
+          description: `${player.name} zahlt ${actualPayment}€ an ${owner.name}`,
         });
       }
       nextTurn();
     } else if (!propertyData.owner && propertyData.price > 0) {
       // Property can be bought
       setSelectedProperty(propertyData);
-      setGamePhase('property');
+      await updateGameState({ ...gameState, gamePhase: 'property' });
     } else {
       nextTurn();
     }
   };
 
-  const handleSpecialField = (playerIndex: number, property: Property | undefined) => {
-    const player = players[playerIndex];
-    
+  const handleSpecialField = async (player: Player, property: Property | undefined) => {
     if (!property) {
       nextTurn();
       return;
     }
 
+    let newMoney = player.money;
+    let newPosition = player.position;
+    let newInJail = player.inJail;
+
     switch (property.id) {
       case 'tax1':
-        setPlayers(prev => {
-          const newPlayers = [...prev];
-          newPlayers[playerIndex].money -= 200;
-          return newPlayers;
-        });
+        newMoney -= 200;
         toast({
           title: "⚡ Gildensteuer",
           description: `${player.name} zahlt 200€ an die Händlergilde`,
@@ -159,11 +388,7 @@ const Game = () => {
         break;
         
       case 'tax2':
-        setPlayers(prev => {
-          const newPlayers = [...prev];
-          newPlayers[playerIndex].money -= 100;
-          return newPlayers;
-        });
+        newMoney -= 100;
         toast({
           title: "🐉 Drachensteuer",
           description: `${player.name} zahlt 100€ Tribut an den Drachen`,
@@ -171,23 +396,11 @@ const Game = () => {
         break;
         
       case 'banish':
-        setPlayers(prev => {
-          const newPlayers = [...prev];
-          newPlayers[playerIndex].position = 10; // Prison position
-          newPlayers[playerIndex].inJail = true;
-          newPlayers[playerIndex].jailTurns = 0;
-          return newPlayers;
-        });
+        newPosition = 10; // Prison position
+        newInJail = true;
         toast({
           title: "🏰 Ins Drachenverlies!",
           description: `${player.name} wurde verbannt`,
-        });
-        break;
-        
-      case 'sanctuary':
-        toast({
-          title: "🛡️ Sicherer Hafen",
-          description: `${player.name} ruht sich im Refugium aus`,
         });
         break;
         
@@ -195,22 +408,21 @@ const Game = () => {
         if (property.id.includes('fortune') || property.id.includes('destiny')) {
           const bonuses = [0, 50, 100, 200, -50, -100];
           const bonus = bonuses[Math.floor(Math.random() * bonuses.length)];
-          setPlayers(prev => {
-            const newPlayers = [...prev];
-            newPlayers[playerIndex].money += bonus;
-            return newPlayers;
-          });
+          newMoney += bonus;
           toast({
             title: bonus >= 0 ? "🍀 Glück gehabt!" : "💸 Pech gehabt!",
             description: `${player.name} ${bonus >= 0 ? 'erhält' : 'verliert'} ${Math.abs(bonus)}€`,
           });
-        } else {
-          toast({
-            title: "✨ Magischer Ort",
-            description: `${player.name} besucht ${property.name}`,
-          });
         }
     }
+    
+    await updatePlayer(player.id, {
+      ...player,
+      money: newMoney,
+      position: newPosition,
+      inJail: newInJail,
+      jailTurns: newInJail ? 0 : player.jailTurns
+    });
     
     nextTurn();
   };
@@ -228,7 +440,7 @@ const Game = () => {
         p.type === 'utility' && p.owner === property.owner
       ).length;
       const multiplier = ownedUtilities === 1 ? 4 : 10;
-      const diceSum = lastDiceRoll ? lastDiceRoll.dice1 + lastDiceRoll.dice2 : 7;
+      const diceSum = gameState.lastDiceRoll ? gameState.lastDiceRoll.dice1 + gameState.lastDiceRoll.dice2 : 7;
       return diceSum * multiplier;
     }
     
@@ -242,66 +454,21 @@ const Game = () => {
     return property.rent * 110; // Hotel
   };
 
-  const handleDiceRoll = (dice1: number, dice2: number) => {
-    setLastDiceRoll({ dice1, dice2 });
-    setGamePhase('moving');
-    
-    const diceSum = dice1 + dice2;
-    const player = players[currentPlayer];
-    
-    if (player.inJail) {
-      if (dice1 === dice2) {
-        // Double - get out of jail
-        setPlayers(prev => {
-          const newPlayers = [...prev];
-          newPlayers[currentPlayer].inJail = false;
-          newPlayers[currentPlayer].jailTurns = 0;
-          return newPlayers;
-        });
-        toast({
-          title: "🔓 Pasch! Befreit!",
-          description: `${player.name} entkommt dem Drachenverlies`,
-        });
-        movePlayer(currentPlayer, diceSum);
-      } else {
-        setPlayers(prev => {
-          const newPlayers = [...prev];
-          newPlayers[currentPlayer].jailTurns++;
-          return newPlayers;
-        });
-        toast({
-          title: "🔒 Noch gefangen",
-          description: `${player.name} muss noch ${3 - (player.jailTurns + 1)} Runden im Verlies bleiben`,
-        });
-        nextTurn();
-        return;
-      }
-    } else {
-      movePlayer(currentPlayer, diceSum);
-    }
-    
-    setTimeout(() => {
-      const newPosition = (player.position + diceSum) % 40;
-      const landedProperty = properties[newPosition];
-      handlePropertyLanding(currentPlayer, landedProperty);
-    }, 1500);
-  };
-
-  const handlePropertyPurchase = (property: Property) => {
-    const player = players[currentPlayer];
+  const handlePropertyPurchase = async (property: Property) => {
+    const player = players.find(p => p.id === currentPlayerId);
+    if (!player) return;
     
     if (player.money >= property.price) {
-      setPlayers(prev => {
-        const newPlayers = [...prev];
-        newPlayers[currentPlayer].money -= property.price;
-        newPlayers[currentPlayer].properties.push(property.id);
-        return newPlayers;
+      await updatePlayer(player.id, {
+        ...player,
+        money: player.money - property.price,
+        properties: [...player.properties, property.id]
       });
       
       setProperties(prev => {
         const newProperties = [...prev];
         const propertyIndex = newProperties.findIndex(p => p.id === property.id);
-        newProperties[propertyIndex].owner = player.id;
+        newProperties[propertyIndex].owner = parseInt(player.id);
         return newProperties;
       });
       
@@ -312,49 +479,33 @@ const Game = () => {
     }
     
     setSelectedProperty(null);
-    setGamePhase('waiting');
+    await updateGameState({ ...gameState, gamePhase: 'waiting' });
     nextTurn();
   };
 
-  const nextTurn = () => {
-    setTimeout(() => {
-      setCurrentPlayer(prev => {
-        const nextPlayer = (prev + 1) % players.length;
-        // Skip bankrupt players
-        if (players[nextPlayer].money <= 0) {
-          return (nextPlayer + 1) % players.length;
-        }
-        return nextPlayer;
-      });
-      
-      if (currentPlayer === players.length - 1) {
-        setRound(prev => prev + 1);
-      }
-      
-      setGamePhase('waiting');
-    }, 1000);
-  };
-
-  const handlePropertyClick = (property: Property) => {
-    if (gamePhase === 'property' || property.owner) {
-      setSelectedProperty(property);
+  const nextTurn = async () => {
+    const currentIndex = players.findIndex(p => p.id === gameState.currentPlayerId);
+    let nextIndex = (currentIndex + 1) % players.length;
+    
+    // Skip bankrupt players
+    while (players[nextIndex]?.money <= 0 && nextIndex !== currentIndex) {
+      nextIndex = (nextIndex + 1) % players.length;
     }
-  };
-
-  const handleMoneyTransfer = (fromPlayerId: number, toPlayerId: number, amount: number) => {
-    setPlayers(prev => {
-      const newPlayers = [...prev];
-      const fromIndex = newPlayers.findIndex(p => p.id === fromPlayerId);
-      const toIndex = newPlayers.findIndex(p => p.id === toPlayerId);
-      
-      newPlayers[fromIndex].money -= amount;
-      newPlayers[toIndex].money += amount;
-      
-      return newPlayers;
+    
+    const newRound = nextIndex === 0 ? gameState.round + 1 : gameState.round;
+    
+    await updateGameState({
+      ...gameState,
+      currentPlayerId: players[nextIndex].id,
+      gamePhase: 'waiting',
+      round: newRound
     });
   };
 
-  if (gamePhase === 'finished') {
+  const currentPlayer = players.find(p => p.id === gameState.currentPlayerId);
+  const myPlayer = players.find(p => p.id === currentPlayerId);
+  
+  if (gameState.gamePhase === 'finished') {
     const winner = players.find(p => p.money > 0);
     return (
       <div className="min-h-screen bg-gradient-board flex items-center justify-center">
@@ -384,6 +535,14 @@ const Game = () => {
     );
   }
 
+  if (!currentPlayer || !myPlayer) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Lade Spiel...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
       <div className="max-w-7xl mx-auto">
@@ -409,10 +568,10 @@ const Game = () => {
           
           <div className="flex items-center gap-4">
             <Badge variant="secondary" className="text-lg px-4 py-2 bg-slate-700 text-white">
-              Runde {round}
+              Runde {gameState.round}
             </Badge>
             <Badge className="text-lg px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white">
-              {players[currentPlayer].name} ist dran
+              {currentPlayer.name} ist dran
             </Badge>
           </div>
         </div>
@@ -423,9 +582,16 @@ const Game = () => {
             <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700 border-2 shadow-2xl">
               <CardContent className="p-6">
                 <GameBoard
-                  players={players}
-                  currentPlayer={currentPlayer}
-                  onPropertyClick={handlePropertyClick}
+                  players={players.map(p => ({
+                    id: parseInt(p.id),
+                    name: p.name,
+                    money: p.money,
+                    position: p.position,
+                    color: p.color,
+                    properties: p.properties
+                  }))}
+                  currentPlayer={players.findIndex(p => p.id === gameState.currentPlayerId)}
+                  onPropertyClick={(property) => setSelectedProperty(property)}
                   properties={properties}
                 />
               </CardContent>
@@ -435,15 +601,24 @@ const Game = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             <PlayerPanel
-              player={players[currentPlayer]}
-              isCurrentPlayer={true}
-              gamePhase={gamePhase}
+              player={{
+                id: parseInt(myPlayer.id),
+                name: myPlayer.name,
+                money: myPlayer.money,
+                position: myPlayer.position,
+                color: myPlayer.color,
+                properties: myPlayer.properties,
+                inJail: myPlayer.inJail,
+                jailTurns: myPlayer.jailTurns
+              }}
+              isCurrentPlayer={gameState.currentPlayerId === currentPlayerId}
+              gamePhase={gameState.gamePhase}
             />
 
             <DiceRoller
               onRoll={handleDiceRoll}
-              disabled={gamePhase !== 'waiting'}
-              isRolling={gamePhase === 'rolling' || gamePhase === 'moving'}
+              disabled={gameState.gamePhase !== 'waiting' || gameState.currentPlayerId !== currentPlayerId}
+              isRolling={gameState.gamePhase === 'rolling' || gameState.gamePhase === 'moving'}
             />
 
             {/* Money Transfer Button */}
@@ -452,7 +627,7 @@ const Game = () => {
                 <Button 
                   onClick={() => setShowMoneyTransfer(true)}
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-                  disabled={gamePhase !== 'waiting'}
+                  disabled={gameState.gamePhase !== 'waiting'}
                 >
                   <Send className="h-4 w-4 mr-2" />
                   Geld senden
@@ -461,38 +636,25 @@ const Game = () => {
             </Card>
 
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-white">Andere Abenteurer</h3>
-              {players
-                .filter((_, index) => index !== currentPlayer)
-                .map((player) => (
-                  <PlayerPanel
-                    key={player.id}
-                    player={player}
-                    isCurrentPlayer={false}
-                    gamePhase={gamePhase}
-                  />
-                ))}
+              <h3 className="text-lg font-semibold text-white">Alle Spieler</h3>
+              {players.map((player) => (
+                <PlayerPanel
+                  key={player.id}
+                  player={{
+                    id: parseInt(player.id),
+                    name: player.name,
+                    money: player.money,
+                    position: player.position,
+                    color: player.color,
+                    properties: player.properties,
+                    inJail: player.inJail,
+                    jailTurns: player.jailTurns
+                  }}
+                  isCurrentPlayer={gameState.currentPlayerId === player.id}
+                  gamePhase={gameState.gamePhase}
+                />
+              ))}
             </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Spielaktionen</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full" disabled>
-                  Handeln
-                </Button>
-                <Button variant="outline" className="w-full" disabled>
-                  Häuser bauen
-                </Button>
-                <Button variant="outline" className="w-full" disabled>
-                  Hypothek aufnehmen
-                </Button>
-                <Button variant="destructive" className="w-full" disabled>
-                  Aufgeben
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
 
@@ -500,15 +662,41 @@ const Game = () => {
         {selectedProperty && (
           <PropertyCard
             property={selectedProperty}
-            onClose={() => {
-              setSelectedProperty(null);
-              if (gamePhase === 'property') {
-                nextTurn();
-              }
-              setGamePhase('waiting');
-            }}
             onBuy={() => handlePropertyPurchase(selectedProperty)}
-            canBuy={!selectedProperty.owner && players[currentPlayer].money >= selectedProperty.price && gamePhase === 'property'}
+            onClose={() => setSelectedProperty(null)}
+            canBuy={gameState.gamePhase === 'property' && gameState.currentPlayerId === currentPlayerId}
+          />
+        )}
+
+        {/* Money Transfer Modal */}
+        {showMoneyTransfer && (
+          <MoneyTransfer
+            isOpen={showMoneyTransfer}
+            currentPlayer={{
+              id: parseInt(myPlayer.id),
+              name: myPlayer.name,
+              money: myPlayer.money,
+              position: myPlayer.position,
+              color: myPlayer.color,
+              properties: myPlayer.properties
+            }}
+            allPlayers={players.map(p => ({
+              id: parseInt(p.id),
+              name: p.name,
+              money: p.money,
+              position: p.position,
+              color: p.color,
+              properties: p.properties
+            }))}
+            onTransfer={async (fromId, toId, amount) => {
+              const fromPlayer = players.find(p => parseInt(p.id) === fromId);
+              const toPlayer = players.find(p => parseInt(p.id) === toId);
+              if (fromPlayer && toPlayer) {
+                await updatePlayer(fromPlayer.id, { ...fromPlayer, money: fromPlayer.money - amount });
+                await updatePlayer(toPlayer.id, { ...toPlayer, money: toPlayer.money + amount });
+              }
+            }}
+            onClose={() => setShowMoneyTransfer(false)}
           />
         )}
       </div>
