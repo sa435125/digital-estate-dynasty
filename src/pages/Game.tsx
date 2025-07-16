@@ -643,113 +643,12 @@ const Game = () => {
         </div>
 
         {/* Mobile-First Layout */}
-        <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-4 lg:gap-6">
-          {/* Mobile Controls - Above board on mobile */}
-          <div className="order-1 lg:order-2 lg:col-span-1 space-y-4">
-            {/* Current Player Info */}
-            <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700 lg:hidden">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={cn("w-3 h-3 rounded-full", currentPlayer.color)}></div>
-                    <span className="text-white font-medium">{currentPlayer.name}</span>
-                  </div>
-                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
-                    {currentPlayer.money.toLocaleString('de-DE')}€
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Dice Roller */}
-            <DiceRoller
-              onRoll={handleDiceRoll}
-              disabled={gameState.gamePhase !== 'waiting' || gameState.currentPlayerId !== currentPlayerId}
-              isRolling={gameState.gamePhase === 'rolling' || gameState.gamePhase === 'moving'}
-            />
-
-            {/* Mobile Players Scroll */}
-            <div className="lg:hidden">
-              <h3 className="text-base font-semibold text-white mb-3">Alle Spieler</h3>
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                {players.map((player) => (
-                  <div key={player.id} className="flex-shrink-0 w-64">
-                    <PlayerPanel
-                      player={{
-                        id: parseInt(player.id),
-                        name: player.name,
-                        money: player.money,
-                        position: player.position,
-                        color: player.color,
-                        properties: player.properties,
-                        inJail: player.inJail,
-                        jailTurns: player.jailTurns
-                      }}
-                      isCurrentPlayer={gameState.currentPlayerId === player.id}
-                      gamePhase={gameState.gamePhase}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Desktop Sidebar */}
-            <div className="hidden lg:block space-y-4">
-              {/* My Player Panel */}
-              <PlayerPanel
-                player={{
-                  id: parseInt(myPlayer.id),
-                  name: myPlayer.name,
-                  money: myPlayer.money,
-                  position: myPlayer.position,
-                  color: myPlayer.color,
-                  properties: myPlayer.properties,
-                  inJail: myPlayer.inJail,
-                  jailTurns: myPlayer.jailTurns
-                }}
-                isCurrentPlayer={gameState.currentPlayerId === currentPlayerId}
-                gamePhase={gameState.gamePhase}
-              />
-
-              {/* All Players */}
-              <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-white">Alle Spieler</h3>
-                {players.map((player) => (
-                  <PlayerPanel
-                    key={player.id}
-                    player={{
-                      id: parseInt(player.id),
-                      name: player.name,
-                      money: player.money,
-                      position: player.position,
-                      color: player.color,
-                      properties: player.properties,
-                      inJail: player.inJail,
-                      jailTurns: player.jailTurns
-                    }}
-                    isCurrentPlayer={gameState.currentPlayerId === player.id}
-                    gamePhase={gameState.gamePhase}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Money Transfer Button */}
-            <Button
-              onClick={() => setShowMoneyTransfer(true)}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-              disabled={gameState.gamePhase !== 'waiting'}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Geld senden</span>
-              <span className="sm:hidden">Senden</span>
-            </Button>
-          </div>
-
-          {/* Game Board */}
-          <div className="order-2 lg:order-1 lg:col-span-3">
+        <div className="lg:grid lg:grid-cols-4 lg:gap-6">
+          {/* Mobile Layout */}
+          <div className="lg:hidden space-y-3">
+            {/* Game Board - Main focus on mobile */}
             <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700 border-2 shadow-2xl">
-              <CardContent className="p-2 sm:p-4 lg:p-6">
+              <CardContent className="p-1 sm:p-2">
                 <GameBoard
                   players={players.map(p => ({
                     id: parseInt(p.id),
@@ -765,6 +664,161 @@ const Game = () => {
                 />
               </CardContent>
             </Card>
+
+            {/* Mobile Bottom Controls */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Current Player Quick Info */}
+              <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={cn("w-3 h-3 rounded-full", currentPlayer.color)}></div>
+                    <span className="text-white font-medium text-sm">{currentPlayer.name}</span>
+                  </div>
+                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs w-full justify-center">
+                    {currentPlayer.money.toLocaleString('de-DE')}€
+                  </Badge>
+                </CardContent>
+              </Card>
+
+              {/* Dice Controls */}
+              <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700">
+                <CardContent className="p-3">
+                  <Button
+                    onClick={() => {
+                      const dice1 = Math.floor(Math.random() * 6) + 1;
+                      const dice2 = Math.floor(Math.random() * 6) + 1;
+                      handleDiceRoll(dice1, dice2);
+                    }}
+                    disabled={gameState.gamePhase !== 'waiting' || gameState.currentPlayerId !== currentPlayerId}
+                    className="w-full text-sm py-2"
+                    size="sm"
+                  >
+                    {gameState.gamePhase === 'moving' ? "Würfelt..." : "🎲 Würfeln"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Compact Players Strip */}
+            <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700">
+              <CardContent className="p-2">
+                <div className="flex justify-between items-center text-xs">
+                  {players.map((player, index) => (
+                    <div key={player.id} className="flex flex-col items-center gap-1">
+                      <div className={cn(
+                        "w-6 h-6 rounded-full border-2 border-white flex items-center justify-center",
+                        player.color,
+                        gameState.currentPlayerId === player.id && "ring-2 ring-yellow-400"
+                      )}>
+                        <span className="text-white font-bold text-xs">{player.name.charAt(0)}</span>
+                      </div>
+                      <span className="text-white text-xs">{Math.round(player.money / 1000)}k€</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Action Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => setShowMoneyTransfer(true)}
+                variant="outline"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                disabled={gameState.gamePhase !== 'waiting'}
+                size="sm"
+              >
+                <Send className="h-3 w-3 mr-1" />
+                Senden
+              </Button>
+              <Button
+                onClick={() => {/* TODO: Show detailed players modal */}}
+                variant="outline"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                size="sm"
+              >
+                👥 Spieler
+              </Button>
+            </div>
+          </div>
+
+          {/* Desktop Layout */}
+          <div className="hidden lg:block lg:col-span-3">
+            <Card className="bg-slate-800/90 backdrop-blur-xl border-slate-700 border-2 shadow-2xl">
+              <CardContent className="p-6">
+                <GameBoard
+                  players={players.map(p => ({
+                    id: parseInt(p.id),
+                    name: p.name,
+                    money: p.money,
+                    position: p.position,
+                    color: p.color,
+                    properties: p.properties
+                  }))}
+                  currentPlayer={players.findIndex(p => p.id === gameState.currentPlayerId)}
+                  onPropertyClick={(property) => setSelectedProperty(property)}
+                  properties={properties}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Desktop Sidebar */}
+          <div className="hidden lg:block space-y-4">
+            {/* Dice Roller */}
+            <DiceRoller
+              onRoll={handleDiceRoll}
+              disabled={gameState.gamePhase !== 'waiting' || gameState.currentPlayerId !== currentPlayerId}
+              isRolling={gameState.gamePhase === 'rolling' || gameState.gamePhase === 'moving'}
+            />
+
+            {/* My Player Panel */}
+            <PlayerPanel
+              player={{
+                id: parseInt(myPlayer.id),
+                name: myPlayer.name,
+                money: myPlayer.money,
+                position: myPlayer.position,
+                color: myPlayer.color,
+                properties: myPlayer.properties,
+                inJail: myPlayer.inJail,
+                jailTurns: myPlayer.jailTurns
+              }}
+              isCurrentPlayer={gameState.currentPlayerId === currentPlayerId}
+              gamePhase={gameState.gamePhase}
+            />
+
+            {/* All Players */}
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-white">Alle Spieler</h3>
+              {players.map((player) => (
+                <PlayerPanel
+                  key={player.id}
+                  player={{
+                    id: parseInt(player.id),
+                    name: player.name,
+                    money: player.money,
+                    position: player.position,
+                    color: player.color,
+                    properties: player.properties,
+                    inJail: player.inJail,
+                    jailTurns: player.jailTurns
+                  }}
+                  isCurrentPlayer={gameState.currentPlayerId === player.id}
+                  gamePhase={gameState.gamePhase}
+                />
+              ))}
+            </div>
+
+            {/* Money Transfer Button */}
+            <Button
+              onClick={() => setShowMoneyTransfer(true)}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+              disabled={gameState.gamePhase !== 'waiting'}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Geld senden
+            </Button>
           </div>
         </div>
 
