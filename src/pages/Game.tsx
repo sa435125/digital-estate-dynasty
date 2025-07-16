@@ -51,18 +51,27 @@ const Game = () => {
   // Initialize game from lobby data
   useEffect(() => {
     const gameData = localStorage.getItem('monopoly-game-data');
+    console.log('Game data from localStorage:', gameData);
+    
     if (!gameData) {
+      console.log('No game data found, redirecting to lobby');
       navigate("/lobby");
       return;
     }
 
     const parsed = JSON.parse(gameData);
+    console.log('Parsed game data:', parsed);
+    
     setGameCode(parsed.gameCode || "");
     setLobbyId(parsed.lobbyId);
     setCurrentPlayerId(parsed.playerId);
 
     // Initialize game in database if not exists
-    initializeGame(parsed);
+    if (parsed.lobbyId) {
+      initializeGame(parsed);
+    } else {
+      console.error('No lobbyId in game data');
+    }
   }, []);
 
   // Real-time subscriptions
@@ -167,17 +176,29 @@ const Game = () => {
   };
 
   const loadGameState = async () => {
+    console.log('Loading game state for lobbyId:', lobbyId);
+    if (!lobbyId) {
+      console.error('No lobbyId available for loading game state');
+      return;
+    }
+
     const { data, error } = await supabase
       .from('game_state')
       .select('*')
       .eq('lobby_id', lobbyId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error loading game state:', error);
       return;
     }
 
+    if (!data) {
+      console.log('No game state found, game might not be initialized yet');
+      return;
+    }
+
+    console.log('Game state loaded:', data);
     setGameState({
       currentPlayerId: data.current_player_id,
       gamePhase: data.game_phase as 'waiting' | 'rolling' | 'moving' | 'property' | 'rent' | 'finished',
@@ -187,6 +208,12 @@ const Game = () => {
   };
 
   const loadPlayers = async () => {
+    console.log('Loading players for lobbyId:', lobbyId);
+    if (!lobbyId) {
+      console.error('No lobbyId available for loading players');
+      return;
+    }
+
     const { data, error } = await supabase
       .from('game_players')
       .select('*')
@@ -198,6 +225,12 @@ const Game = () => {
       return;
     }
 
+    if (!data || data.length === 0) {
+      console.log('No players found for this lobby');
+      return;
+    }
+
+    console.log('Players loaded:', data);
     const formattedPlayers: Player[] = data.map(player => ({
       id: player.player_id,
       name: player.name,
