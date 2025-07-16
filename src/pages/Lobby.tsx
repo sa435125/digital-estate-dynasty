@@ -63,7 +63,7 @@ const Lobby = () => {
       loadLobbyPlayers();
     }, 2000);
 
-    // Set up real-time subscription
+    // Set up real-time subscription for lobby status changes
     const channel = supabase
       .channel(`lobby-players-${lobbyId}`)
       .on(
@@ -90,6 +90,38 @@ const Lobby = () => {
         (payload) => {
           console.log('Real-time: Player left:', payload);
           loadLobbyPlayers();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'lobbies',
+          filter: `id=eq.${lobbyId}`
+        },
+        (payload) => {
+          console.log('Lobby status changed:', payload);
+          // Check if game was started
+          if (payload.new.status === 'started') {
+            // Redirect all players to game
+            const gameData = {
+              players: lobbyPlayers,
+              gameCode: gameCode,
+              lobbyId: lobbyId,
+              playerId: playerId
+            };
+            localStorage.setItem('monopoly-game-data', JSON.stringify(gameData));
+            
+            toast({
+              title: "🎮 Spiel gestartet!",
+              description: "Du wirst ins Spiel weitergeleitet...",
+            });
+            
+            setTimeout(() => {
+              navigate("/game");
+            }, 1000);
+          }
         }
       )
       .subscribe((status) => {
@@ -350,10 +382,18 @@ const Lobby = () => {
       const gameData = {
         players: lobbyPlayers,
         gameCode: gameCode,
-        lobbyId: lobbyId
+        lobbyId: lobbyId,
+        playerId: playerId
       };
       
       localStorage.setItem('monopoly-game-data', JSON.stringify(gameData));
+      
+      toast({
+        title: "🎮 Spiel startet!",
+        description: "Alle Spieler werden ins Spiel weitergeleitet...",
+      });
+
+      // Navigate to game
       navigate("/game");
     } catch (error) {
       console.error('Error starting game:', error);
