@@ -125,9 +125,10 @@ const Lobby = () => {
         .single();
 
       if (lobbyError) {
+        console.error('Lobby creation error:', lobbyError);
         toast({
           title: "Fehler beim Erstellen",
-          description: "Lobby konnte nicht erstellt werden",
+          description: `Lobby konnte nicht erstellt werden: ${lobbyError.message}`,
           variant: "destructive"
         });
         return;
