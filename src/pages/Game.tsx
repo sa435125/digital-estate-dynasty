@@ -62,21 +62,34 @@ const Game = () => {
     const parsed = JSON.parse(gameData);
     console.log('Parsed game data:', parsed);
     
+    if (!parsed.lobbyId) {
+      console.error('No lobbyId in game data, redirecting to lobby');
+      navigate("/lobby");
+      return;
+    }
+    
     setGameCode(parsed.gameCode || "");
     setLobbyId(parsed.lobbyId);
     setCurrentPlayerId(parsed.playerId);
+  }, [navigate]);
 
-    // Initialize game in database if not exists
-    if (parsed.lobbyId) {
+  // Initialize game when lobbyId is available
+  useEffect(() => {
+    if (!lobbyId) return;
+    
+    console.log('Initializing game for lobbyId:', lobbyId);
+    const gameData = localStorage.getItem('monopoly-game-data');
+    if (gameData) {
+      const parsed = JSON.parse(gameData);
       initializeGame(parsed);
-    } else {
-      console.error('No lobbyId in game data');
     }
-  }, []);
+  }, [lobbyId]);
 
   // Real-time subscriptions
   useEffect(() => {
     if (!lobbyId) return;
+
+    console.log('Setting up real-time subscriptions for lobbyId:', lobbyId);
 
     const gameStateChannel = supabase
       .channel(`game-state-${lobbyId}`)
