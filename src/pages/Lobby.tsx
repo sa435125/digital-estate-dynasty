@@ -292,19 +292,21 @@ const startGame = async () => {
       .eq('id', lobbyId);
     if (error) throw error;
 
+    // Speichere initiale Spieldaten im LocalStorage
     const initialGameData = {
       lobbyId,
       playerId,
-      // ggf. weitere Felder
+      // weitere notwendige Felder je nach Spiellogik
     };
     localStorage.setItem("gameData", JSON.stringify(initialGameData));
 
-    navigate(/game?lobby=${lobbyId}&player=${playerId});
+    // Navigiere zur Game-Seite mit korrekten Parametern
+    navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
   } catch (error: any) {
     toast({ title: "Fehler", description: error.message || "Spiel konnte nicht gestartet werden", variant: "destructive" });
   }
 };
-
+  
   const onSettingsUpdate = () => {
     if (lobbyId) {
       loadLobbyData();
