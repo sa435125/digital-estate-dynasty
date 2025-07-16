@@ -55,16 +55,15 @@ const Game = () => {
   const [showHouseBuilding, setShowHouseBuilding] = useState(false);
   const [bankruptPlayer, setBankruptPlayer] = useState<Player | null>(null);
 
-  // Initialize game from lobby data
+  // Initialize game from lobby data Hurensohn
   useEffect(() => {
-    const gameData = localStorage.getItem('monopoly-game-data');
-    console.log('Game data from localStorage:', gameData);
-    
-    if (!gameData) {
-      console.log('No game data found, redirecting to lobby');
-      navigate("/lobby");
-      return;
-    }
+  // Lade Daten aus LocalStorage
+  const gameData = localStorage.getItem("gameData");
+  if (!gameData) {
+    console.log("No game data found, redirecting to lobby");
+    navigate("/lobby");
+    return;
+  }
 
     const parsed = JSON.parse(gameData);
     console.log('Parsed game data:', parsed);
