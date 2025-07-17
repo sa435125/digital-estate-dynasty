@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Play, Users, LogOut, ShoppingBag, Shield } from "lucide-react";
+import { Play, Users, LogOut, ShoppingBag, Shield, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Shop } from "@/components/game/Shop";
 import { AdminPanel } from "@/components/admin/AdminPanel";
+import { VipStatusMenu } from "@/components/game/VipStatusMenu";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,6 +14,7 @@ export default function Index() {
   const { user, signOut } = useAuth();
   const [showShop, setShowShop] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showVipMenu, setShowVipMenu] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -20,6 +22,14 @@ export default function Index() {
     if (user) {
       loadUserProfile();
     }
+    
+    // Listen for shop close events
+    const handleShopClose = () => setShowShop(false);
+    window.addEventListener('shopClose', handleShopClose);
+    
+    return () => {
+      window.removeEventListener('shopClose', handleShopClose);
+    };
   }, [user]);
 
   const loadUserProfile = async () => {
@@ -95,6 +105,15 @@ export default function Index() {
           <div className="flex gap-4">
             <Button 
               variant="outline" 
+              onClick={() => setShowVipMenu(true)}
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              <User className="mr-2 h-4 w-4" />
+              Profil & Status
+            </Button>
+            
+            <Button 
+              variant="outline" 
               onClick={() => setShowShop(true)}
               className="bg-white/10 border-white/20 text-white hover:bg-white/20"
             >
@@ -164,8 +183,14 @@ export default function Index() {
           userGold={userProfile?.gold || 0}
           onPurchase={() => {
             loadUserProfile(); // Reload profile to get updated gold
-            setShowShop(false);
           }}
+        />
+      )}
+
+      {showVipMenu && (
+        <VipStatusMenu 
+          isOpen={showVipMenu}
+          onClose={() => setShowVipMenu(false)}
         />
       )}
 

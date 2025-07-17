@@ -500,40 +500,6 @@ export default function Lobby() {
                   <Users className="mr-2 h-6 w-6" />
                   Lobby beitreten
                 </Button>
-
-                </Button>
-
-                {showPublicLobbies && publicLobbies.length > 0 && (
-                  <div className="space-y-2 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-semibold">Verfügbare öffentliche Lobbys:</h3>
-                    {publicLobbies.map((lobby) => (
-                      <div key={lobby.id} className="flex items-center justify-between p-3 bg-white rounded border">
-                        <div>
-                          <div className="font-medium">Code: {lobby.code}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Spieler: {lobby.lobby_players?.length || 0}/{lobby.max_players_setting}
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            if (playerName.trim()) {
-                              joinLobby(lobby.code);
-                            } else {
-                              toast({
-                                title: "Name erforderlich",
-                                description: "Bitte gib zuerst einen Spielernamen ein",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
-                        >
-                          Beitreten
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 

@@ -351,6 +351,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_all_profiles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          user_id: string
+          email: string
+          display_name: string
+          role: Database["public"]["Enums"]["user_role"]
+          gold: number
+          is_banned: boolean
+          created_at: string
+          updated_at: string
+          vip_expires_at: string
+          ban_expires_at: string
+          language: string
+          purchased_avatars: string[]
+        }[]
+      }
       is_admin: {
         Args: { user_email: string }
         Returns: boolean
