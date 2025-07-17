@@ -90,19 +90,19 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Crown className="h-12 w-12 text-yellow-400" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold text-white">
               FastEstate
             </h1>
           </div>
-          <p className="text-slate-400">Das ultimative Fantasy-Immobilienspiel</p>
+          <p className="text-white/70">Das ultimative Fantasy-Immobilienspiel</p>
         </div>
 
-        <Card className="bg-slate-800/90 backdrop-blur-sm border-slate-700 shadow-2xl">
+        <Card className="bg-white/10 backdrop-blur-sm border-white/20 shadow-2xl">
           <CardHeader>
             <CardTitle className="text-center text-white text-xl">
               Willkommen

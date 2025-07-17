@@ -193,6 +193,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ban_expires_at: string | null
           created_at: string
           display_name: string | null
           email: string | null
@@ -200,11 +201,14 @@ export type Database = {
           id: string
           is_banned: boolean | null
           language: string | null
+          purchased_avatars: string[] | null
           role: Database["public"]["Enums"]["user_role"] | null
           updated_at: string
           user_id: string
+          vip_expires_at: string | null
         }
         Insert: {
+          ban_expires_at?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -212,11 +216,14 @@ export type Database = {
           id?: string
           is_banned?: boolean | null
           language?: string | null
+          purchased_avatars?: string[] | null
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
           user_id: string
+          vip_expires_at?: string | null
         }
         Update: {
+          ban_expires_at?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
@@ -224,9 +231,11 @@ export type Database = {
           id?: string
           is_banned?: boolean | null
           language?: string | null
+          purchased_avatars?: string[] | null
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
           user_id?: string
+          vip_expires_at?: string | null
         }
         Relationships: []
       }

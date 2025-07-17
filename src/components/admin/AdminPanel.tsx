@@ -15,6 +15,8 @@ interface Profile {
   gold: number;
   is_banned: boolean;
   created_at: string;
+  vip_expires_at?: string;
+  ban_expires_at?: string;
 }
 
 interface GameStats {
@@ -127,9 +129,15 @@ export function AdminPanel() {
   };
 
   const promoteToVip = async (userId: string) => {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+    
     const { error } = await supabase
       .from('profiles')
-      .update({ role: 'vip' })
+      .update({ 
+        role: 'vip',
+        vip_expires_at: expiresAt.toISOString()
+      })
       .eq('id', userId);
 
     if (error) {
@@ -141,7 +149,59 @@ export function AdminPanel() {
     } else {
       toast({
         title: "Erfolg",
-        description: "Benutzer zu VIP befördert",
+        description: "Benutzer zu VIP befördert (30 Tage)",
+      });
+      loadProfiles();
+    }
+  };
+
+  const promoteToAdmin = async (userId: string) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: 'admin' })
+      .eq('id', userId);
+
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Admin-Status konnte nicht vergeben werden",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Erfolg",
+        description: "Benutzer zu Admin befördert",
+      });
+      loadProfiles();
+    }
+  };
+
+  const banUserWithDuration = async (userId: string, days: number) => {
+    let banExpires = null;
+    if (days > 0) {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + days);
+      banExpires = expiresAt.toISOString();
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        is_banned: true,
+        ban_expires_at: banExpires
+      })
+      .eq('id', userId);
+
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Benutzer konnte nicht gebannt werden",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Erfolg",
+        description: days > 0 ? `Benutzer für ${days} Tage gebannt` : "Benutzer permanent gebannt",
       });
       loadProfiles();
     }
@@ -209,9 +269,15 @@ export function AdminPanel() {
                       <Badge variant="destructive">Gebannt</Badge>
                     )}
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {profile.email} • {profile.gold} Gold • Registriert: {new Date(profile.created_at).toLocaleDateString('de-DE')}
-                  </div>
+                   <div className="text-sm text-muted-foreground">
+                     {profile.email} • {profile.gold} Gold • Registriert: {new Date(profile.created_at).toLocaleDateString('de-DE')}
+                     {profile.vip_expires_at && (
+                       <span className="text-yellow-600"> • VIP bis: {new Date(profile.vip_expires_at).toLocaleDateString('de-DE')}</span>
+                     )}
+                     {profile.ban_expires_at && (
+                       <span className="text-red-600"> • Gebannt bis: {new Date(profile.ban_expires_at).toLocaleDateString('de-DE')}</span>
+                     )}
+                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -235,25 +301,56 @@ export function AdminPanel() {
                     </Button>
                   </div>
 
-                  {profile.role !== 'vip' && profile.role !== 'admin' && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => promoteToVip(profile.id)}
-                    >
-                      <UserCheck className="h-4 w-4" />
-                    </Button>
-                  )}
+                   {profile.role === 'user' && (
+                     <>
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         onClick={() => promoteToVip(profile.id)}
+                         className="bg-yellow-500/20 text-yellow-600 hover:bg-yellow-500/30"
+                       >
+                         VIP
+                       </Button>
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         onClick={() => promoteToAdmin(profile.id)}
+                         className="bg-red-500/20 text-red-600 hover:bg-red-500/30"
+                       >
+                         Admin
+                       </Button>
+                     </>
+                   )}
 
-                  {profile.role !== 'admin' && (
-                    <Button
-                      size="sm"
-                      variant={profile.is_banned ? "outline" : "destructive"}
-                      onClick={() => banUser(profile.id, !profile.is_banned)}
-                    >
-                      <Ban className="h-4 w-4" />
-                    </Button>
-                  )}
+                   {profile.role === 'vip' && (
+                     <Button
+                       size="sm"
+                       variant="outline"
+                       onClick={() => promoteToAdmin(profile.id)}
+                       className="bg-red-500/20 text-red-600 hover:bg-red-500/30"
+                     >
+                       Admin
+                     </Button>
+                   )}
+
+                   {profile.role !== 'admin' && (
+                     <>
+                       <Button
+                         size="sm"
+                         variant={profile.is_banned ? "outline" : "destructive"}
+                         onClick={() => profile.is_banned ? banUser(profile.id, false) : banUserWithDuration(profile.id, 7)}
+                       >
+                         {profile.is_banned ? "Entbannen" : "7T Ban"}
+                       </Button>
+                       <Button
+                         size="sm"
+                         variant="destructive"
+                         onClick={() => banUserWithDuration(profile.id, 0)}
+                       >
+                         Perm Ban
+                       </Button>
+                     </>
+                   )}
                 </div>
               </div>
             ))}

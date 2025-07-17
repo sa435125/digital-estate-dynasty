@@ -53,18 +53,18 @@ export function DiceRoller({ onRoll, disabled, isRolling }: DiceRollerProps) {
         {/* Dice Display - responsive sizing */}
         <div className="flex items-center justify-center gap-3 sm:gap-4">
           <div className={cn(
-            "flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-dice-bg border-2 border-board-border rounded-lg shadow-dice transition-transform duration-150",
-            isRolling && "animate-bounce-gentle"
+            "flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-white border-2 border-primary rounded-lg shadow-lg transition-transform duration-150",
+            isRolling && "animate-dice-move"
           )}>
-            <div className="scale-75 sm:scale-100">
+            <div className="scale-75 sm:scale-100 text-primary">
               {getDiceIcon(dice1)}
             </div>
           </div>
           <div className={cn(
-            "flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-dice-bg border-2 border-board-border rounded-lg shadow-dice transition-transform duration-150",
-            isRolling && "animate-bounce-gentle"
+            "flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-white border-2 border-primary rounded-lg shadow-lg transition-transform duration-150",
+            isRolling && "animate-dice-move"
           )}>
-            <div className="scale-75 sm:scale-100">
+            <div className="scale-75 sm:scale-100 text-primary">
               {getDiceIcon(dice2)}
             </div>
           </div>

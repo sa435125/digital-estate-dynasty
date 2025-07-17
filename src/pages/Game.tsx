@@ -55,29 +55,22 @@ const Game = () => {
   const [showHouseBuilding, setShowHouseBuilding] = useState(false);
   const [bankruptPlayer, setBankruptPlayer] = useState<Player | null>(null);
 
-  // Initialize game from lobby data
+  // Initialize game from URL params
   useEffect(() => {
-    const gameData = localStorage.getItem('monopoly-game-data');
-    console.log('Game data from localStorage:', gameData);
+    const urlParams = new URLSearchParams(window.location.search);
+    const lobbyParam = urlParams.get('lobby');
+    const playerParam = urlParams.get('player');
     
-    if (!gameData) {
-      console.log('No game data found, redirecting to lobby');
-      navigate("/lobby");
-      return;
-    }
-
-    const parsed = JSON.parse(gameData);
-    console.log('Parsed game data:', parsed);
+    console.log('URL params - lobby:', lobbyParam, 'player:', playerParam);
     
-    if (!parsed.lobbyId) {
-      console.error('No lobbyId in game data, redirecting to lobby');
+    if (!lobbyParam || !playerParam) {
+      console.log('Missing URL params, redirecting to lobby');
       navigate("/lobby");
       return;
     }
     
-    setGameCode(parsed.gameCode || "");
-    setLobbyId(parsed.lobbyId);
-    setCurrentPlayerId(parsed.playerId);
+    setLobbyId(lobbyParam);
+    setCurrentPlayerId(playerParam);
   }, [navigate]);
 
   // Initialize game when lobbyId is available
@@ -85,11 +78,8 @@ const Game = () => {
     if (!lobbyId) return;
     
     console.log('Initializing game for lobbyId:', lobbyId);
-    const gameData = localStorage.getItem('monopoly-game-data');
-    if (gameData) {
-      const parsed = JSON.parse(gameData);
-      initializeGame(parsed);
-    }
+    loadGameState();
+    loadPlayers();
   }, [lobbyId]);
 
   // Real-time subscriptions
@@ -138,62 +128,7 @@ const Game = () => {
     };
   }, [lobbyId]);
 
-  const initializeGame = async (parsed: any) => {
-    try {
-      // Check if game already exists
-      const { data: existingGame } = await supabase
-        .from('game_state')
-        .select('*')
-        .eq('lobby_id', parsed.lobbyId)
-        .single();
-
-      if (!existingGame) {
-        // Create initial game state
-        const { error: gameError } = await supabase
-          .from('game_state')
-          .insert({
-            lobby_id: parsed.lobbyId,
-            current_player_id: parsed.players[0].id,
-            game_phase: 'waiting',
-            round_number: 1
-          });
-
-        if (gameError) {
-          console.error('Error creating game state:', gameError);
-          return;
-        }
-
-        // Create initial player states
-        const gamePlayersData = parsed.players.map((player: any) => ({
-          lobby_id: parsed.lobbyId,
-          player_id: player.id,
-          name: player.name,
-          money: 1500,
-          position: 0,
-          color: player.color,
-          properties: [],
-          in_jail: false,
-          jail_turns: 0
-        }));
-
-        const { error: playersError } = await supabase
-          .from('game_players')
-          .insert(gamePlayersData);
-
-        if (playersError) {
-          console.error('Error creating players:', playersError);
-          return;
-        }
-      }
-
-      // Load current game state
-      loadGameState();
-      loadPlayers();
-
-    } catch (error) {
-      console.error('Error initializing game:', error);
-    }
-  };
+  // No longer needed - game is initialized from URL params
 
   const loadGameState = async () => {
     console.log('Loading game state for lobbyId:', lobbyId);
