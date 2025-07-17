@@ -45,8 +45,6 @@ export default function Lobby() {
   const [lobbyData, setLobbyData] = useState<LobbyData | null>(null);
   const [playerId, setPlayerId] = useState<string>("");
   const [showSettings, setShowSettings] = useState(false);
-  const [publicLobbies, setPublicLobbies] = useState<any[]>([]);
-  const [showPublicLobbies, setShowPublicLobbies] = useState(false);
 
   const generateGameCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -57,25 +55,6 @@ export default function Lobby() {
     "bg-purple-500", "bg-pink-500", "bg-orange-500", "bg-teal-500"
   ];
 
-  useEffect(() => {
-    loadPublicLobbies();
-  }, []);
-
-  const loadPublicLobbies = async () => {
-    const { data, error } = await supabase
-      .from('lobbies')
-      .select(`
-        *,
-        lobby_players(*)
-      `)
-      .eq('is_private', false)
-      .eq('status', 'waiting')
-      .order('created_at', { ascending: false });
-
-    if (data) {
-      setPublicLobbies(data);
-    }
-  };
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -285,11 +264,42 @@ export default function Lobby() {
     }
 
     try {
-      // Update lobby status
+      // Update lobby status and remove from public lists
       await supabase
         .from('lobbies')
-        .update({ status: 'playing' })
+        .update({ status: 'playing', is_private: true })
         .eq('id', lobbyId);
+
+      // Create game state
+      const { error: gameStateError } = await supabase
+        .from('game_state')
+        .insert({
+          lobby_id: lobbyId,
+          current_player_id: lobbyPlayers[0].player_id,
+          game_phase: 'rolling',
+          round_number: 1
+        });
+
+      if (gameStateError) throw gameStateError;
+
+      // Create game players from lobby players
+      const gamePlayersData = lobbyPlayers.map(player => ({
+        lobby_id: lobbyId,
+        player_id: player.player_id,
+        name: player.name,
+        color: player.color,
+        money: 1500,
+        position: 0,
+        properties: [],
+        in_jail: false,
+        jail_turns: 0
+      }));
+
+      const { error: playersError } = await supabase
+        .from('game_players')
+        .insert(gamePlayersData);
+
+      if (playersError) throw playersError;
 
       // Navigate to game
       navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
@@ -308,7 +318,6 @@ export default function Lobby() {
       loadLobbyData();
       loadLobbyPlayers(lobbyId);
     }
-    loadPublicLobbies();
   };
 
   const loadLobbyData = async () => {
@@ -492,13 +501,6 @@ export default function Lobby() {
                   Lobby beitreten
                 </Button>
 
-                <Button 
-                  variant="outline" 
-                  onClick={() => setShowPublicLobbies(!showPublicLobbies)}
-                  className="h-16 text-lg"
-                >
-                  <Globe className="mr-2 h-6 w-6" />
-                  Öffentliche Lobbys ({publicLobbies.length})
                 </Button>
 
                 {showPublicLobbies && publicLobbies.length > 0 && (

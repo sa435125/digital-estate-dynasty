@@ -217,7 +217,10 @@ export function Shop({ userGold = 100, onPurchase }: ShopProps) {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => window.history.back()}
+                onClick={() => {
+                  const event = new Event('shopClose');
+                  window.dispatchEvent(event);
+                }}
                 className="bg-white/10 border-white/20 text-white hover:bg-white/20"
               >
                 Schließen

@@ -37,19 +37,28 @@ export function AdminPanel() {
   }, []);
 
   const loadProfiles = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
+    try {
+      // Use RPC call to get all profiles (bypassing RLS)
+      const { data, error } = await supabase.rpc('get_all_profiles');
+      
+      if (error) {
+        // Fallback to direct query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (fallbackError) throw fallbackError;
+        setProfiles(fallbackData || []);
+      } else {
+        setProfiles(data || []);
+      }
+    } catch (error: any) {
       toast({
         title: "Fehler",
         description: "Profile konnten nicht geladen werden",
         variant: "destructive"
       });
-    } else {
-      setProfiles(data || []);
     }
   };
 
