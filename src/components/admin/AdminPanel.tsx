@@ -342,24 +342,46 @@ export function AdminPanel() {
                      </Button>
                    )}
 
-                   {profile.role !== 'admin' && (
-                     <>
-                       <Button
-                         size="sm"
-                         variant={profile.is_banned ? "outline" : "destructive"}
-                         onClick={() => profile.is_banned ? banUser(profile.id, false) : banUserWithDuration(profile.id, 7)}
-                       >
-                         {profile.is_banned ? "Entbannen" : "7T Ban"}
-                       </Button>
-                       <Button
-                         size="sm"
-                         variant="destructive"
-                         onClick={() => banUserWithDuration(profile.id, 0)}
-                       >
-                         Perm Ban
-                       </Button>
-                     </>
-                   )}
+                    {profile.role !== 'admin' && (
+                      <>
+                        {profile.is_banned ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => banUser(profile.id, false)}
+                            className="bg-green-500/20 text-green-600 hover:bg-green-500/30"
+                          >
+                            Entbannen
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => banUser(profile.id, true)}
+                              className="bg-red-500/20 text-red-600 hover:bg-red-500/30"
+                            >
+                              Bannen
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => banUserWithDuration(profile.id, 7)}
+                              className="bg-orange-500/20 text-orange-600 hover:bg-orange-500/30"
+                            >
+                              7 Tage
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => banUserWithDuration(profile.id, 0)}
+                            >
+                              Permanent
+                            </Button>
+                          </>
+                        )}
+                      </>
+                    )}
                 </div>
               </div>
             ))}

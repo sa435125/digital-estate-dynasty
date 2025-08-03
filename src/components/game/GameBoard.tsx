@@ -5,7 +5,7 @@ import { HomeIcon, Building, Landmark, Zap, Car, Trophy, Sparkles, Castle, Flame
 import { BOARD_PROPERTIES, Property } from "@/data/properties";
 
 interface Player {
-  id: number;
+  id: string;
   name: string;
   money: number;
   position: number;
