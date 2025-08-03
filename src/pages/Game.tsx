@@ -26,6 +26,7 @@ interface Player {
   properties: string[];
   inJail: boolean;
   jailTurns: number;
+  user_id?: string;
 }
 
 interface GameState {
@@ -194,7 +195,8 @@ const Game = () => {
       color: player.color,
       properties: player.properties || [],
       inJail: player.in_jail,
-      jailTurns: player.jail_turns
+      jailTurns: player.jail_turns,
+      user_id: player.user_id
     }));
 
     setPlayers(formattedPlayers);
@@ -367,6 +369,29 @@ const Game = () => {
       setSelectedProperty(propertyData);
       await updateGameState({ ...gameState, gamePhase: 'property' });
     } else {
+      // Property is owned by someone, handle rent payment
+      if (propertyData.owner && propertyData.owner !== player.id) {
+        const owner = players.find(p => p.id === propertyData.owner);
+        if (owner) {
+          const rent = calculateRent(propertyData);
+          const actualPayment = Math.min(player.money, rent);
+          
+          await updatePlayer(player.id, {
+            ...player,
+            money: player.money - actualPayment
+          });
+          
+          await updatePlayer(owner.id, {
+            ...owner,
+            money: owner.money + actualPayment
+          });
+          
+          toast({
+            title: "🏠 Miete gezahlt",
+            description: `${player.name} zahlt ${actualPayment}€ Miete an ${owner.name}`,
+          });
+        }
+      }
       nextTurn();
     }
   };
@@ -862,14 +887,15 @@ const Game = () => {
             {/* My Player Panel */}
             <PlayerPanel
               player={{
-                id: parseInt(myPlayer.id),
+                id: myPlayer.id,
                 name: myPlayer.name,
                 money: myPlayer.money,
                 position: myPlayer.position,
                 color: myPlayer.color,
                 properties: myPlayer.properties,
                 inJail: myPlayer.inJail,
-                jailTurns: myPlayer.jailTurns
+                jailTurns: myPlayer.jailTurns,
+                user_id: myPlayer.user_id
               }}
               isCurrentPlayer={gameState.currentPlayerId === currentPlayerId}
               gamePhase={gameState.gamePhase}
@@ -885,14 +911,15 @@ const Game = () => {
                 <PlayerPanel
                   key={player.id}
                   player={{
-                    id: parseInt(player.id),
+                    id: player.id,
                     name: player.name,
                     money: player.money,
                     position: player.position,
                     color: player.color,
                     properties: player.properties,
                     inJail: player.inJail,
-                    jailTurns: player.jailTurns
+                    jailTurns: player.jailTurns,
+                    user_id: player.user_id
                   }}
                   isCurrentPlayer={gameState.currentPlayerId === player.id}
                   gamePhase={gameState.gamePhase}

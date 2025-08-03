@@ -2,10 +2,12 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Coins, Home, Crown } from "lucide-react";
+import { Coins, Home, Crown, Shield, Star } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Player {
-  id: number;
+  id: string;
   name: string;
   money: number;
   position: number;
@@ -13,6 +15,7 @@ interface Player {
   properties: string[];
   inJail: boolean;
   jailTurns: number;
+  user_id?: string;
 }
 
 interface PlayerPanelProps {
@@ -22,6 +25,48 @@ interface PlayerPanelProps {
 }
 
 export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelProps) {
+  const [playerRole, setPlayerRole] = useState<string>('user');
+
+  useEffect(() => {
+    const fetchPlayerRole = async () => {
+      if (player.user_id) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', player.user_id)
+          .single();
+        
+        if (data) {
+          setPlayerRole(data.role);
+        }
+      }
+    };
+
+    fetchPlayerRole();
+  }, [player.user_id]);
+
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return <Shield className="h-3 w-3 text-red-500" />;
+      case 'vip':
+        return <Star className="h-3 w-3 text-yellow-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getRoleText = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'Admin';
+      case 'vip':
+        return 'VIP';
+      default:
+        return '';
+    }
+  };
+
   return (
     <Card className={cn(
       "transition-all duration-300 bg-slate-800/90 backdrop-blur-xl border-slate-700",
@@ -38,6 +83,12 @@ export function PlayerPanel({ player, isCurrentPlayer, gamePhase }: PlayerPanelP
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 sm:gap-2">
               <span className="text-sm sm:text-lg font-medium truncate">{player.name}</span>
+              {getRoleIcon(playerRole)}
+              {getRoleText(playerRole) && (
+                <Badge variant={playerRole === 'admin' ? 'destructive' : 'secondary'} className="text-xs">
+                  {getRoleText(playerRole)}
+                </Badge>
+              )}
               {isCurrentPlayer && <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />}
             </div>
             {isCurrentPlayer && (

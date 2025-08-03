@@ -8,6 +8,7 @@ import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { LobbySettings } from "@/components/game/LobbySettings";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LobbyData {
   id: string;
@@ -31,13 +32,14 @@ export default function Lobby() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [gameMode, setGameMode] = useState<'create' | 'join' | 'browse' | null>(
     searchParams.get('mode') === 'join' ? 'join' : null
   );
   const [gameCode, setGameCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [playerName, setPlayerName] = useState("");
+  const [playerName, setPlayerName] = useState(user?.user_metadata?.display_name || user?.email || "");
   const [lobbyPlayers, setLobbyPlayers] = useState<LobbyPlayer[]>([]);
   const [isHost, setIsHost] = useState(false);
   const [lobbyCreated, setLobbyCreated] = useState(false);
@@ -352,12 +354,26 @@ export default function Lobby() {
           loadLobbyPlayers(lobbyId);
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'lobbies',
+          filter: `id=eq.${lobbyId}`
+        },
+        (payload) => {
+          if (payload.new.status === 'playing') {
+            navigate(`/game?lobby=${lobbyId}&player=${playerId}`);
+          }
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [lobbyId]);
+  }, [lobbyId, navigate, user]);
 
   if (lobbyCreated) {
     return (
